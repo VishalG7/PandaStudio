@@ -1,0 +1,235 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Panda Studio</title>
+
+    <!-- App Favicon -->
+    <link rel="icon" type="image/svg+xml" href="favicon.svg?v=1">
+    <link rel="alternate icon"
+        href="data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 viewBox=%220 0 100 100%22><text y=%22.9em%22 font-size=%2290%22>🐼</text></svg>">
+
+    <!-- Google Fonts: Inter -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Stylesheets -->
+    <link rel="stylesheet" href="css/app.css?v=9">
+    <link rel="stylesheet" href="css/trimmer.css?v=9">
+    <link rel="stylesheet" href="css/library.css?v=9">
+    <link rel="stylesheet" href="css/backup-updater.css?v=9">
+
+    <!-- JSZip for Client-side ZIP packaging -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+</head>
+
+<body>
+
+    <!-- APP HEADER -->
+    <header class="app-header">
+        <div class="header-left">
+            <button class="settings-shortcut-btn" id="appSettingsBtn" title="Settings & About">
+                <span style="font-size:16px;">⚙️</span>
+            </button>
+            <div class="brand-wrapper">
+                <div class="brand-icon">🐼</div>
+                <div>
+                    <div class="brand-title">Panda <span>Studio</span></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Dynamic Module Tabs -->
+        <nav class="module-nav" id="moduleNav"></nav>
+
+        <!-- Right Side: Server Health & Status -->
+        <div class="header-right">
+            <div class="server-status-pill" id="serverStatusPill" title="Status of local Python backend server">
+                <span class="status-dot offline" id="serverStatusDot"></span>
+                <span id="serverStatusLabel">Checking server...</span>
+            </div>
+        </div>
+    </header>
+
+    <!-- APP VIEWPORTS CONTAINER -->
+    <main class="app-body" id="viewportParent">
+        <!-- Notice if opened directly via file:// instead of localhost -->
+        <div id="fileProtocolNotice"
+            style="display:none; padding:20px 24px; margin:30px auto; max-width:680px; background:#fff1f2; border:1px solid #fecdd3; border-radius:12px; color:#9f1239; box-shadow:0 4px 6px -1px rgba(0,0,0,0.05);">
+            <h3 style="margin:0 0 8px; font-size:16px;">⚠️ Please Launch via start.bat</h3>
+            <p style="margin:0 0 12px; font-size:14px; line-height:1.5;">Modern web browsers require an HTTP server
+                (<code>http://localhost:6700</code>) to load JavaScript modules and IndexedDB smoothly, and block them
+                when opened directly via <code>file://</code>.</p>
+            <p style="margin:0; font-size:13.5px; font-weight:600;">To start: Double-click <code>start.bat</code> in
+                this folder, or run <code>python server.py</code> in terminal.</p>
+        </div>
+        <script>
+            if (window.location.protocol === "file:") {
+                window.addEventListener("DOMContentLoaded", function () {
+                    var el = document.getElementById("fileProtocolNotice");
+                    if (el) el.style.display = "block";
+                });
+            }
+        </script>
+        <!-- Module containers (view-trimmer, view-library, etc.) will be dynamically attached here -->
+    </main>
+
+    <!-- Global Toast Container -->
+    <div class="toast-container" id="toastContainer"></div>
+
+    <!-- SETTINGS & ABOUT MODAL -->
+    <div class="modal-backdrop" id="appSettingsModal">
+        <div class="modal-window" style="max-width: 480px;">
+            <div class="modal-header">
+                <h3 class="modal-title" style="display:flex; align-items:center; gap:8px;">
+                    <span>⚙️</span> Settings & About
+                </h3>
+                <button class="modal-close-btn" id="closeSettingsModalBtn" title="Close">✕</button>
+            </div>
+            <div class="modal-body" style="padding: 24px; display:flex; flex-direction:column; gap:20px;">
+                <!-- Theme Section -->
+                <div class="settings-section">
+                    <h4
+                        style="margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;">
+                        Appearance & Theme</h4>
+                    <div
+                        style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; display:flex; justify-content:space-between; align-items:center;">
+                        <div>
+                            <div style="font-weight:600; font-size:14px; color:var(--text-primary);"
+                                id="themeModeLabel">Theme Mode</div>
+                            <div style="font-size:12px; color:var(--text-muted);" id="themeModeSub">Light theme active
+                            </div>
+                        </div>
+                        <div class="theme-toggle-group"
+                            style="display:flex; background:var(--bg-card); border:1px solid var(--border); border-radius:var(--radius-sm); padding:2px; gap:4px;">
+                            <button type="button" class="btn btn-sm btn-primary" id="themeLightBtn"
+                                style="padding:5px 12px; font-size:12.5px;">☀️ Light</button>
+                            <button type="button" class="btn btn-sm" id="themeDarkBtn"
+                                style="padding:5px 12px; font-size:12.5px;">🌙 Dark</button>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Shortcuts Section -->
+                <div class="settings-section">
+                    <h4
+                        style="margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;">
+                        Shortcuts</h4>
+                    <div
+                        style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px;">
+                        <div style="font-size:13px; color:var(--text-secondary); margin-bottom:12px;">Jump directly to
+                            YouTube Creator Studio:</div>
+                        <a href="https://studio.youtube.com/" target="_blank" rel="noopener noreferrer"
+                            class="btn btn-primary" id="settingsYtStudioBtn"
+                            style="display:flex; align-items:center; gap:8px; text-decoration:none; width:100%; justify-content:center; padding:10px 16px; font-weight:600;">
+                            <span>▶️</span> Open YouTube Studio
+                            <span style="font-size:11px; opacity:0.85;">↗</span>
+                        </a>
+                    </div>
+                </div>
+
+                <!-- About Section -->
+                <div class="settings-section">
+                    <h4
+                        style="margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;">
+                        About</h4>
+                    <div
+                        style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; display:flex; flex-direction:column; gap:12px;">
+                        <div style="display:flex; align-items:center; gap:12px;">
+                            <div style="font-size:32px; line-height:1;">🐼</div>
+                            <div>
+                                <div style="font-weight:700; font-size:16px; color:var(--text-primary);">Panda Studio
+                                </div>
+                                <div style="font-size:12.5px; color:var(--text-muted);">Content Creation & Library
+                                    Management Suite</div>
+                            </div>
+                        </div>
+                        <div
+                            style="border-top:1px solid var(--border); padding-top:10px; font-size:13.5px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:var(--text-secondary);">Developer:</span>
+                            <strong style="color:var(--text-primary); font-size:14px;">Vishal Gupta</strong>
+                        </div>
+                        <div
+                            style="border-top:1px solid var(--border); padding-top:10px; font-size:12.5px; display:flex; justify-content:space-between; align-items:center;">
+                            <span style="color:var(--text-secondary);">Activity Logs:</span>
+                            <button type="button" class="btn btn-sm" id="openLogsFolderBtn"
+                                title="Click to open backups/logs/ in File Explorer"
+                                style="font-family:var(--font-mono); font-size:12px; padding:4px 10px; display:flex; align-items:center; gap:6px;">
+                                <span>📂</span>
+                                <span>backups/logs/</span>
+                                <span style="font-size:10px; opacity:0.75;">↗</span>
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer"
+                style="padding:14px 24px; border-top:1px solid var(--border); display:flex; justify-content:flex-end;">
+                <button class="btn btn-sm" id="doneSettingsModalBtn">Close</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Error overlay: catches any JS errors and shows them visibly on-page -->
+    <div id="errOverlay"
+        style="display:none;position:fixed;bottom:0;left:0;right:0;max-height:40vh;overflow-y:auto;background:#1e1e2e;color:#f38ba8;font-family:monospace;font-size:13px;padding:12px 16px;z-index:99999;border-top:2px solid #f38ba8;">
+        <strong style="color:#cba6f7;">⚠ JS Errors (auto-hidden in production):</strong>
+        <div id="errList"></div>
+    </div>
+    <script>
+        function showErr(msg, src, line) {
+            var o = document.getElementById('errOverlay');
+            var l = document.getElementById('errList');
+            if (!o || !l) return;
+            o.style.display = 'block';
+            var d = document.createElement('div');
+            d.style.borderTop = '1px solid #313244';
+            d.style.paddingTop = '4px';
+            d.style.marginTop = '4px';
+            d.textContent = (src ? src.replace(window.location.origin, '') + ':' + line + '  ' : '') + msg;
+            l.appendChild(d);
+        }
+        window.onerror = function (msg, src, line, col, err) {
+            showErr((err && err.stack) || msg, src, line);
+            return false;
+        };
+        window.addEventListener('unhandledrejection', function (e) {
+            showErr('Unhandled Promise: ' + (e.reason && (e.reason.stack || e.reason.message || e.reason)), '', '');
+        });
+    </script>
+
+    <!-- Application Initialization & Module Registration -->
+    <script type="module">
+        import { App } from "./js/app.js?v=9";
+        import { TrimmerModule } from "./js/modules/trimmer.js?v=9";
+        import { LibraryModule } from "./js/modules/library.js?v=9";
+        import { GridSplitterModule } from "./js/modules/grid-splitter.js?v=9";
+        import { BackupUpdaterModule } from "./js/modules/backup-updater.js?v=9";
+
+        // Wrap in async IIFE so we can use await without top-level await
+        (async () => {
+            try {
+                App.registerModule(LibraryModule);
+                App.registerModule(TrimmerModule);
+                App.registerModule(BackupUpdaterModule);
+                App.registerModule(GridSplitterModule);
+                App.initApp();
+            } catch (err) {
+                var o = document.getElementById('errOverlay');
+                var l = document.getElementById('errList');
+                if (o && l) {
+                    o.style.display = 'block';
+                    var d = document.createElement('div');
+                    d.style.paddingTop = '6px';
+                    d.textContent = 'MODULE LOAD ERROR: ' + (err.stack || err.message || err);
+                    l.appendChild(d);
+                }
+            }
+        })();
+    </script>
+</body>
+
+</html>

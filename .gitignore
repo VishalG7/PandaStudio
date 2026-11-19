@@ -1,0 +1,26 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.env
+.venv/
+env/
+venv/
+
+# PyInstaller build cache (keep dist/ for zero-install distribution)
+build/
+*.manifest
+*.spec.bak
+
+# Activity logs (keep sample backups, ignore daily logs)
+backups/logs/*.log
+*.log
+
+# Operating System & IDE files
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+.DS_Store
+.vscode/
+.idea/
