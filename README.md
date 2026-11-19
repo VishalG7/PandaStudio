@@ -2,7 +2,12 @@
 
 A high-performance, offline-first, zero-cloud desktop web platform designed for creators, AI artists, and developers. Built with a clean **micro-kernel modular architecture**, it allows adding unlimited independent tools and features without disturbing existing ones.
 
-Includes a **standalone Windows executable** (`dist\PandaStudio.exe`) that runs everywhere with zero prerequisites (no Python, pip, or Node.js required).
+---
+
+> ### 📦 **Quick Download (No Installation Required)**
+> 
+> **[⬇️ Download `PandaStudio.exe` (Standalone Windows Executable)](dist/PandaStudio.exe?raw=true)** (~9.46 MB)  
+> *Ready to run on Windows 10 & 11 — zero Python, pip, or Node.js required. Just download, double-click, and start creating!*
 
 ---
 
@@ -35,11 +40,17 @@ Includes a **standalone Windows executable** (`dist\PandaStudio.exe`) that runs 
 ## 🚀 Quick Start
 
 ### Option A: Standalone Windows Executable (Recommended)
-Double-click [`dist\PandaStudio.exe`](file:///d:/Developer/Web/LocalImageTextLibrary/dist/PandaStudio.exe).
-- **Zero Prerequisites:** No Python, Git, or dependencies needed.
-- **Embedded Assets:** HTML, CSS, JavaScript, and custom panda icon are packed inside.
-- **Persistent Storage:** Automatically stores user data in `backups/` and `backups/logs/` in the same directory as the `.exe`.
-- Automatically opens your default web browser to `http://localhost:6700`.
+
+👉 **[📥 Click here to download `PandaStudio.exe`](dist/PandaStudio.exe?raw=true)**
+
+1. **Download:** Click the link above to save [`PandaStudio.exe`](dist/PandaStudio.exe?raw=true) (~9.46 MB) to any folder on your computer.
+2. **Launch:** Double-click `PandaStudio.exe`.
+3. **Start Creating:** The local server starts and automatically opens Panda Studio in your default browser at `http://localhost:6700`.
+
+- **Zero Prerequisites:** No Python, pip packages, Git, or Node.js needed.
+- **Embedded Assets:** All HTML, CSS, JavaScript, and custom panda icons are packed inside the single executable.
+- **Persistent Storage:** Backups (`backups/`) and activity logs (`backups/logs/`) are created automatically alongside the executable on your disk.
+- **Portable:** Move `PandaStudio.exe` to a USB drive or another Windows PC and it runs immediately.
 
 ### Option B: Windows Batch Launcher
 Double-click [`start.bat`](file:///d:/Developer/Web/LocalImageTextLibrary/start.bat) in the project root.
