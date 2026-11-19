@@ -12,8 +12,12 @@ build/
 *.manifest
 *.spec.bak
 
-# Activity logs (keep sample backups, ignore daily logs)
-backups/logs/*.log
+# Backups and personal user data (never commit personal backups or images)
+backups/*
+!backups/.gitkeep
+!backups/logs/
+backups/logs/*
+!backups/logs/.gitkeep
 *.log
 
 # Operating System & IDE files
