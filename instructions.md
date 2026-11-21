@@ -90,6 +90,12 @@ If any file throws a syntax error, fix it immediately.
   - Always maintain `sys.stdout.reconfigure(encoding="utf-8", errors="replace", line_buffering=True)` to prevent Windows console `cp1252` encoding crashes.
   - Rebuild the executable after major server or asset changes via `build_exe.bat` or `python -m PyInstaller --clean PandaStudio.spec`.
 
+### 12. Tab 1 Item Completion & Done State Invariants
+- Each library item may carry a boolean `done` property (`done: true/false`).
+- Completed items MUST be visually greyed out (`.library-card.is-done`), with title struck through and marked with a green checkmark/pill.
+- Toggling completion status immediately updates IndexedDB (`dbPut("items", item)`), re-renders the gallery and sidebar badges (`allCountBadge`, `pendingCountBadge`, `doneCountBadge`), logs the action via `this.app.log(...)`, and does not reload the page.
+- Item export/backup and import/sync MUST preserve the `done` status.
+
 ---
 
 ## 🏛 Micro-Kernel Architecture & Adding New Modules

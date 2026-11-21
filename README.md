@@ -142,6 +142,7 @@ Panda Studio uses a centralized **Micro-Kernel Architecture** (`js/app.js`):
 ### Tab 1: 📋 Image & Text Library (`library`)
 Full image-prompt catalogue and asset management system:
 - **Client IndexedDB:** Stores binary image `Blob`s and metadata locally (`LocalImageTextLibrary`, version 1).
+- **Task Completion & Done State (Greyed-Out):** One-click completion toggle (`○` / `✓`) directly on card headers. Completed items are visually greyed out with title strikethrough, subtle contrast, and green `✓ Done` pills. Includes sidebar filters (`⏳ Pending` / `✅ Done`) and multi-item bulk completion actions.
 - **Natural Numerical Sorting:** Intelligently sorts items whose titles begin with numbers (`1.`, `2.`, `28. Stick Insect`).
 - **Real-Time Filtering:** Search across titles, descriptions, and tags with sidebar filters for Favorites, Groups, and Tags.
 - **Group Management with Cascade Deletion:** Deleting a group automatically purges all items assigned to that group to prevent orphaned ghost items.

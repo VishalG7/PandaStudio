@@ -66,6 +66,14 @@ export const LibraryModule = {
                             <span>📚 All Items</span>
                             <span class="sidebar-count-badge" id="allCountBadge">0</span>
                         </button>
+                        <button class="sidebar-nav-item" id="filterPendingBtn">
+                            <span>⏳ Pending / Todo</span>
+                            <span class="sidebar-count-badge" id="pendingCountBadge">0</span>
+                        </button>
+                        <button class="sidebar-nav-item" id="filterDoneBtn">
+                            <span>✅ Done</span>
+                            <span class="sidebar-count-badge" id="doneCountBadge">0</span>
+                        </button>
                         <button class="sidebar-nav-item" id="filterFavBtn">
                             <span>⭐ Favorites</span>
                             <span class="sidebar-count-badge" id="favCountBadge">0</span>
@@ -89,6 +97,8 @@ export const LibraryModule = {
                                 <div class="gallery-subtitle" id="galleryCountLabel">0 items</div>
                             </div>
                             <div style="display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+                                <button class="btn btn-sm btn-success" id="libBulkDoneBtn" style="display:none;">✓ Mark Done</button>
+                                <button class="btn btn-sm" id="libBulkUndoneBtn" style="display:none;">↩ Mark Incomplete</button>
                                 <button class="btn btn-sm btn-danger" id="libBulkDeleteBtn" style="display:none;">🗑️ Delete Selected (<span id="libSelectedCount">0</span>)</button>
                                 <button class="btn btn-sm" id="libSelectAllBtn">Select All</button>
                                 <button class="btn btn-sm" id="libClearFilterBtn" style="display:none;">✕ Clear Filter</button>
@@ -144,10 +154,14 @@ export const LibraryModule = {
                             <input type="text" id="itemTagsInput" class="form-input" placeholder="macro, insect, nature">
                         </div>
 
-                        <div class="form-group">
+                        <div class="form-group" style="display:flex; gap:24px; align-items:center; flex-wrap:wrap;">
                             <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
                                 <input type="checkbox" id="itemFavCheckbox">
                                 <span style="font-size:13.5px; font-weight:600;">⭐ Mark as Favorite</span>
+                            </label>
+                            <label style="display:flex; align-items:center; gap:8px; cursor:pointer;">
+                                <input type="checkbox" id="itemDoneCheckbox">
+                                <span style="font-size:13.5px; font-weight:600;">✓ Mark as Done</span>
                             </label>
                         </div>
                     </div>
@@ -178,6 +192,7 @@ export const LibraryModule = {
                                     <span class="type-badge" id="detailTypeBadge"></span>
                                     <span class="sidebar-count-badge" id="detailGroupBadge"></span>
                                     <button class="btn btn-sm" id="detailToggleFavBtn">⭐ Favorite</button>
+                                    <button class="btn btn-sm" id="detailToggleDoneBtn">✓ Mark as Done</button>
                                 </div>
 
                                 <div>
@@ -236,6 +251,8 @@ export const LibraryModule = {
         root.querySelector("#libNewItemBtn").onclick = () => this.openNewItem();
         root.querySelector("#sidebarNewGroupBtn").onclick = () => this.openGroupModal();
         root.querySelector("#libClearFilterBtn").onclick = () => this.setFilter("all", null);
+        root.querySelector("#libBulkDoneBtn").onclick = () => this.bulkSetDone(true);
+        root.querySelector("#libBulkUndoneBtn").onclick = () => this.bulkSetDone(false);
         root.querySelector("#libBulkDeleteBtn").onclick = () => this.deleteSelectedItems();
         root.querySelector("#libSelectAllBtn").onclick = () => this.toggleSelectAll();
         root.querySelector("#libExportBtn").onclick = () => this.exportBackup();
@@ -244,6 +261,8 @@ export const LibraryModule = {
 
         // Sidebar Navigation
         root.querySelector("#filterAllBtn").onclick = () => this.setFilter("all", null);
+        root.querySelector("#filterPendingBtn").onclick = () => this.setFilter("pending", null);
+        root.querySelector("#filterDoneBtn").onclick = () => this.setFilter("done", null);
         root.querySelector("#filterFavBtn").onclick = () => this.setFilter("favorites", null);
 
         // Item Modal
@@ -308,6 +327,7 @@ export const LibraryModule = {
             this.openEditItem(id);
         };
         root.querySelector("#detailToggleFavBtn").onclick = () => this.toggleFavorite(this.state.detailItemId);
+        root.querySelector("#detailToggleDoneBtn").onclick = () => this.toggleDone(this.state.detailItemId);
         root.querySelector("#detailCopyImageBtn").onclick = () => {
             const item = this.state.items.find(i => i.id === this.state.detailItemId);
             this.copyImage(item);
@@ -380,6 +400,16 @@ export const LibraryModule = {
             root.querySelector("#filterAllBtn").classList.add("active");
             galleryTitle.textContent = "All Items";
             clearBtn.style.display = "none";
+        } else if (type === "pending") {
+            const btn = root.querySelector("#filterPendingBtn");
+            if (btn) btn.classList.add("active");
+            galleryTitle.textContent = "⏳ Pending / Todo";
+            clearBtn.style.display = "inline-flex";
+        } else if (type === "done") {
+            const btn = root.querySelector("#filterDoneBtn");
+            if (btn) btn.classList.add("active");
+            galleryTitle.textContent = "✅ Done Items";
+            clearBtn.style.display = "inline-flex";
         } else if (type === "favorites") {
             root.querySelector("#filterFavBtn").classList.add("active");
             galleryTitle.textContent = "⭐ Favorites";
@@ -406,6 +436,8 @@ export const LibraryModule = {
 
         return this.state.items.filter(item => {
             // Filter by type
+            if (type === "pending" && item.done) return false;
+            if (type === "done" && !item.done) return false;
             if (type === "favorites" && !item.favorite) return false;
             if (type === "group" && item.group !== value) return false;
             if (type === "tag" && (!item.tags || !item.tags.includes(value))) return false;
@@ -436,8 +468,15 @@ export const LibraryModule = {
 
         const allCount = this.state.items.length;
         const favCount = this.state.items.filter(i => i.favorite).length;
+        const doneCount = this.state.items.filter(i => !!i.done).length;
+        const pendingCount = allCount - doneCount;
+
         this.container.querySelector("#allCountBadge").textContent = allCount;
         this.container.querySelector("#favCountBadge").textContent = favCount;
+        const doneBadge = this.container.querySelector("#doneCountBadge");
+        if (doneBadge) doneBadge.textContent = doneCount;
+        const pendingBadge = this.container.querySelector("#pendingCountBadge");
+        if (pendingBadge) pendingBadge.textContent = pendingCount;
         this.container.querySelector("#galleryCountLabel").textContent = `${result.length} item${result.length === 1 ? "" : "s"}`;
 
         if (result.length === 0) {
@@ -462,6 +501,7 @@ export const LibraryModule = {
             card.className = "library-card";
             const isSelected = this.state.selectedItemIds.has(item.id);
             if (isSelected) card.classList.add("selected");
+            if (item.done) card.classList.add("is-done");
 
             let imgSrc = "";
             if (item.image) {
@@ -487,7 +527,12 @@ export const LibraryModule = {
                 <div class="card-select-wrap" title="Select item">
                     <input type="checkbox" class="card-select-chk" data-item-id="${this.escapeHtml(item.id)}" ${isSelected ? "checked" : ""}>
                 </div>
-                <button class="card-delete-btn" title="Delete item">×</button>
+                <div class="card-top-right-btns">
+                    <button class="card-done-btn ${item.done ? "is-done" : ""}" title="${item.done ? "Done ✓ (Click to mark incomplete)" : "Click to mark as Done"}">
+                        ${item.done ? "✓" : "○"}
+                    </button>
+                    <button class="card-delete-btn" title="Delete item">×</button>
+                </div>
                 ${imgHtml}
                 <div class="card-content">
                     <div class="card-title">${this.escapeHtml(item.title || "Untitled")}</div>
@@ -495,11 +540,20 @@ export const LibraryModule = {
                     <div class="card-tags">${tagsHtml}</div>
                     <div class="card-footer">
                         <span class="type-badge">${typeLabel}</span>
+                        ${item.done ? '<span class="done-pill">✓ Done</span>' : ''}
                         <span style="color:var(--text-muted); font-size:11px;">${this.escapeHtml(grpName)}</span>
                         <span class="card-fav-star">${item.favorite ? "★" : ""}</span>
                     </div>
                 </div>
             `;
+
+            const doneBtn = card.querySelector(".card-done-btn");
+            if (doneBtn) {
+                doneBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    await this.toggleDone(item.id);
+                };
+            }
 
             const selectWrap = card.querySelector(".card-select-wrap");
             const selectChk = card.querySelector(".card-select-chk");
@@ -648,6 +702,7 @@ export const LibraryModule = {
         root.querySelector("#itemTextInput").value = "";
         root.querySelector("#itemTagsInput").value = "";
         root.querySelector("#itemFavCheckbox").checked = false;
+        root.querySelector("#itemDoneCheckbox").checked = false;
         root.querySelector("#itemGroupSelect").value = this.state.currentFilter.type === "group" ? this.state.currentFilter.value : "";
         root.querySelector("#itemImagePreviewWrap").style.display = "none";
         root.querySelector("#itemImagePreviewImg").src = "";
@@ -671,6 +726,7 @@ export const LibraryModule = {
         root.querySelector("#itemTextInput").value = item.text || "";
         root.querySelector("#itemTagsInput").value = (item.tags || []).join(", ");
         root.querySelector("#itemFavCheckbox").checked = !!item.favorite;
+        root.querySelector("#itemDoneCheckbox").checked = !!item.done;
         root.querySelector("#itemGroupSelect").value = item.group || "";
 
         if (item.image) {
@@ -697,6 +753,7 @@ export const LibraryModule = {
         const text = root.querySelector("#itemTextInput").value.trim();
         const group = root.querySelector("#itemGroupSelect").value || null;
         const favorite = root.querySelector("#itemFavCheckbox").checked;
+        const done = root.querySelector("#itemDoneCheckbox").checked;
         const rawTags = root.querySelector("#itemTagsInput").value;
         const tags = Array.from(new Set(rawTags.split(",").map(t => t.trim().toLowerCase()).filter(Boolean)));
 
@@ -722,6 +779,7 @@ export const LibraryModule = {
             text,
             group,
             favorite,
+            done,
             tags,
             image: imageBlob,
             updatedAt: now,
@@ -751,6 +809,8 @@ export const LibraryModule = {
     updateBulkActionUI(visibleItems) {
         const root = this.container;
         const bulkBtn = root.querySelector("#libBulkDeleteBtn");
+        const bulkDoneBtn = root.querySelector("#libBulkDoneBtn");
+        const bulkUndoneBtn = root.querySelector("#libBulkUndoneBtn");
         const countSpan = root.querySelector("#libSelectedCount");
         const selectAllBtn = root.querySelector("#libSelectAllBtn");
 
@@ -759,9 +819,13 @@ export const LibraryModule = {
         const selectedCount = this.state.selectedItemIds.size;
         if (selectedCount > 0) {
             bulkBtn.style.display = "inline-flex";
+            if (bulkDoneBtn) bulkDoneBtn.style.display = "inline-flex";
+            if (bulkUndoneBtn) bulkUndoneBtn.style.display = "inline-flex";
             countSpan.textContent = selectedCount;
         } else {
             bulkBtn.style.display = "none";
+            if (bulkDoneBtn) bulkDoneBtn.style.display = "none";
+            if (bulkUndoneBtn) bulkUndoneBtn.style.display = "none";
             countSpan.textContent = "0";
         }
 
@@ -771,6 +835,23 @@ export const LibraryModule = {
         } else {
             selectAllBtn.textContent = "Select All";
         }
+    },
+
+    async bulkSetDone(isDone) {
+        const selectedIds = Array.from(this.state.selectedItemIds);
+        if (selectedIds.length === 0) return;
+
+        for (const id of selectedIds) {
+            const item = this.state.items.find(i => i.id === id);
+            if (item) {
+                item.done = isDone;
+                item.updatedAt = Date.now();
+                await dbPut("items", item);
+            }
+        }
+        this.renderItems();
+        this.app.log(this.id, `Bulk marked ${selectedIds.length} item(s) as ${isDone ? "done" : "incomplete"}`);
+        this.app.showToast(`Marked ${selectedIds.length} item(s) as ${isDone ? "done" : "incomplete"}`, "success");
     },
 
     toggleSelectAll() {
@@ -843,6 +924,7 @@ export const LibraryModule = {
 
         const favBtn = root.querySelector("#detailToggleFavBtn");
         favBtn.textContent = item.favorite ? "★ Favorited" : "☆ Add Favorite";
+        this.updateDetailDoneBtn(item);
 
         const imgEl = root.querySelector("#detailImg");
         const noImg = root.querySelector("#detailNoImg");
@@ -872,6 +954,18 @@ export const LibraryModule = {
         }
     },
 
+    updateDetailDoneBtn(item) {
+        const doneBtn = this.container.querySelector("#detailToggleDoneBtn");
+        if (!doneBtn) return;
+        if (item.done) {
+            doneBtn.textContent = "✓ Completed (Mark Incomplete)";
+            doneBtn.className = "btn btn-sm btn-success";
+        } else {
+            doneBtn.textContent = "✓ Mark as Done";
+            doneBtn.className = "btn btn-sm";
+        }
+    },
+
     async toggleFavorite(id) {
         const item = this.state.items.find(i => i.id === id);
         if (!item) return;
@@ -884,6 +978,22 @@ export const LibraryModule = {
         if (this.state.detailItemId === id) {
             this.container.querySelector("#detailToggleFavBtn").textContent = item.favorite ? "★ Favorited" : "☆ Add Favorite";
         }
+    },
+
+    async toggleDone(id) {
+        const item = this.state.items.find(i => i.id === id);
+        if (!item) return;
+
+        item.done = !item.done;
+        item.updatedAt = Date.now();
+        await dbPut("items", item);
+        this.renderItems();
+
+        if (this.state.detailItemId === id) {
+            this.updateDetailDoneBtn(item);
+        }
+        this.app.log(this.id, `Item "${item.title || "Untitled"}" marked as ${item.done ? "done" : "incomplete"}`, { id: item.id, done: item.done });
+        this.app.showToast(item.done ? `Marked "${item.title || "Item"}" as done` : `Marked "${item.title || "Item"}" as incomplete`, "info", 1800);
     },
 
     /* =========================================================

@@ -11,6 +11,7 @@ venv/
 build/
 *.manifest
 *.spec.bak
+dist/backups/
 
 # Backups and personal user data (never commit personal backups or images)
 backups/*

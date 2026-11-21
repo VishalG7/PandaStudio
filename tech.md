@@ -117,13 +117,24 @@ Organize, view, filter, copy, and maintain pairs of prompt text and generated im
 4. **Tagging & Search:**
    - Dynamic tag cloud extracted from all items.
    - Instant search across Title, Prompt Text, and Tags.
-5. **Bulk Operations:**
+5. **Item Completion & Done State (Greyed-Out):**
+   - Quick one-click Done toggle button (`○` / `✓`) directly on each card header.
+   - When marked as Done:
+     - Card is visually greyed out (`opacity: 0.52`, `filter: grayscale(85%)`, subtle background).
+     - Title displays a clean strikethrough.
+     - Footer renders a green `✓ Done` pill.
+     - On hover, opacity recovers to `0.88` to allow reviewing details or toggling incomplete with one click.
+   - In Detail Modal: Toggle button switches between `✓ Mark as Done` and `✓ Completed (Mark Incomplete)`.
+   - In Create/Edit Modal: Checkbox `✓ Mark as Done` allows presetting completion status.
+   - In Bulk Actions: `✓ Mark Done` and `↩ Mark Incomplete` buttons allow marking multiple selected items simultaneously.
+   - In Navigation Sidebar: Dedicated `⏳ Pending / Todo` and `✅ Done` filters with real-time count badges.
+6. **Bulk Operations:**
    - Multi-select checkboxes on cards.
    - "Select All" / "Deselect All" button.
-   - Bulk Delete button with item count and confirmation.
-6. **Export & Import:**
-   - **Export / Auto-Backup:** Translates internal UUIDs into human-readable group names (e.g. `"group": "In"`), formats as formatted JSON, downloads locally, and automatically saves to `backups/` via `POST /save-backup`.
-   - **Import JSON:** Merges or restores items, automatically creating referenced groups if they do not yet exist.
+   - Bulk Mark Done, Bulk Mark Incomplete, and Bulk Delete buttons with item counts and confirmation.
+7. **Export & Import:**
+   - **Export / Auto-Backup:** Translates internal UUIDs into human-readable group names (e.g. `"group": "In"`), formats as formatted JSON, preserves `done` completion status, downloads locally, and automatically saves to `backups/` via `POST /save-backup`.
+   - **Import JSON:** Merges or restores items, automatically creating referenced groups if they do not yet exist, and restoring `done` status.
 
 ---
 
@@ -386,6 +397,28 @@ python -m PyInstaller --clean PandaStudio.spec
 #### TC-1.9: Import Backup JSON
 - **Steps:** Click `📥 Import JSON`, choose a backup file with a new group "Fantasy".
 - **Expected:** Items are imported, group "Fantasy" is automatically created, and items display under that group.
+
+#### TC-1.10: Item Completion & Greyed-Out Visual State
+- **Steps:** On an active card in the gallery, click the top-right completion toggle `○`.
+- **Expected:**
+  1. Toggle icon immediately switches to a green checkmark `✓`.
+  2. The entire card becomes greyed out (`opacity: 0.52`, `grayscale(85%)`).
+  3. The item title receives a strikethrough.
+  4. Card footer renders a green `✓ Done` pill badge.
+  5. Sidebar badges update: `Pending / Todo` count decrements, `Done` count increments.
+  6. Action is logged to disk via `/api/log`.
+- **Steps:** Refresh the browser page.
+- **Expected:** Done status and greyed-out appearance persist from IndexedDB.
+- **Steps:** Click the green checkmark `✓` button again.
+- **Expected:** Card restores to full opacity, title strikethrough is removed, and it returns to active/pending state.
+
+#### TC-1.11: Sidebar Done / Pending Filtering & Bulk Completion
+- **Steps:** In the sidebar navigation, click `⏳ Pending / Todo`.
+- **Expected:** Gallery filters to show only uncompleted items.
+- **Steps:** Click `✅ Done`.
+- **Expected:** Gallery filters to show only completed (greyed-out) items.
+- **Steps:** Select 3 checkboxes on cards. Header displays `✓ Mark Done` and `↩ Mark Incomplete`. Click `✓ Mark Done`.
+- **Expected:** All 3 items are marked as done in bulk and immediately become greyed out.
 
 ---
 
