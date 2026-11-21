@@ -283,6 +283,24 @@ class AppKernel {
         // Global Keyboard Handler
         document.addEventListener("keydown", event => {
             if (event.key === "Escape") {
+                // If active module provides onEscape, let it handle Escape first (e.g. guard unsaved changes)
+                if (this.activeModuleId && this.modules.has(this.activeModuleId)) {
+                    const mod = this.modules.get(this.activeModuleId);
+                    if (typeof mod.onEscape === "function") {
+                        const handled = mod.onEscape(event);
+                        if (handled) return;
+                    }
+                }
+
+                // Global fallback for Settings modal
+                const settingsModal = document.getElementById("appSettingsModal");
+                if (settingsModal && settingsModal.classList.contains("show")) {
+                    settingsModal.classList.remove("show");
+                    this.log("app", "Action: Closed Settings & About modal via Escape");
+                    return;
+                }
+
+                // Close any other open generic modals
                 document.querySelectorAll(".modal-backdrop.show").forEach(modal => {
                     modal.classList.remove("show");
                 });

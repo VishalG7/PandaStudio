@@ -21,7 +21,9 @@ export const LibraryModule = {
         detailItemId: null,
         pendingImageBlob: null,
         pendingImageRemoved: false,
-        selectedItemIds: new Set()
+        selectedItemIds: new Set(),
+        itemModalBaseline: null,
+        groupModalBaseline: ""
     },
 
     async init(container, app) {
@@ -319,11 +321,11 @@ export const LibraryModule = {
         });
 
         // Detail Modal
-        root.querySelector("#closeDetailModalBtn").onclick = () => root.querySelector("#detailModal").classList.remove("show");
+        root.querySelector("#closeDetailModalBtn").onclick = () => this.closeDetailModal();
         root.querySelector("#detailDeleteBtn").onclick = () => this.deleteDetailItem();
         root.querySelector("#detailEditBtn").onclick = () => {
             const id = this.state.detailItemId;
-            root.querySelector("#detailModal").classList.remove("show");
+            this.closeDetailModal();
             this.openEditItem(id);
         };
         root.querySelector("#detailToggleFavBtn").onclick = () => this.toggleFavorite(this.state.detailItemId);
@@ -345,6 +347,44 @@ export const LibraryModule = {
         root.querySelector("#closeGroupModalBtn").onclick = () => root.querySelector("#groupModal").classList.remove("show");
         root.querySelector("#cancelGroupModalBtn").onclick = () => root.querySelector("#groupModal").classList.remove("show");
         root.querySelector("#saveGroupModalBtn").onclick = () => this.saveGroup();
+
+        // Backdrop Click-Outside Handlers
+        const itemModal = root.querySelector("#itemModal");
+        if (itemModal) {
+            itemModal.addEventListener("click", e => {
+                if (e.target === itemModal) {
+                    if (this.hasItemModalUnsavedChanges()) {
+                        this.shakeModal(itemModal);
+                        this.app.showToast("Unsaved changes: click Save or Cancel to exit", "warning", 2000);
+                    } else {
+                        this.closeItemModal();
+                    }
+                }
+            });
+        }
+
+        const detailModal = root.querySelector("#detailModal");
+        if (detailModal) {
+            detailModal.addEventListener("click", e => {
+                if (e.target === detailModal) {
+                    this.closeDetailModal();
+                }
+            });
+        }
+
+        const groupModal = root.querySelector("#groupModal");
+        if (groupModal) {
+            groupModal.addEventListener("click", e => {
+                if (e.target === groupModal) {
+                    const val = (root.querySelector("#groupNameInput")?.value || "").trim();
+                    if (val && val !== (this.state.groupModalBaseline || "")) {
+                        this.shakeModal(groupModal);
+                    } else {
+                        groupModal.classList.remove("show");
+                    }
+                }
+            });
+        }
     },
 
     onKeyDown(event) {
@@ -352,6 +392,43 @@ export const LibraryModule = {
             event.preventDefault();
             this.openNewItem();
         }
+    },
+
+    onEscape(event) {
+        const root = this.container;
+        const itemModal = root.querySelector("#itemModal");
+        const detailModal = root.querySelector("#detailModal");
+        const groupModal = root.querySelector("#groupModal");
+
+        // 1. Item Create / Edit Modal: if unsaved changes exist, stay open; otherwise close
+        if (itemModal && itemModal.classList.contains("show")) {
+            if (this.hasItemModalUnsavedChanges()) {
+                this.shakeModal(itemModal);
+                this.app.showToast("Unsaved changes: click Save or Cancel to exit", "warning", 2000);
+                return true; // Prevent close, stay on dialog
+            }
+            this.closeItemModal();
+            return true; // Handled clean close
+        }
+
+        // 2. Item Detail View Modal: saved item details with no changes -> close on escape
+        if (detailModal && detailModal.classList.contains("show")) {
+            this.closeDetailModal();
+            return true;
+        }
+
+        // 3. Group Management Modal
+        if (groupModal && groupModal.classList.contains("show")) {
+            const val = (root.querySelector("#groupNameInput")?.value || "").trim();
+            if (val && val !== (this.state.groupModalBaseline || "")) {
+                this.shakeModal(groupModal);
+                return true; // Prevent close
+            }
+            groupModal.classList.remove("show");
+            return true;
+        }
+
+        return false;
     },
 
     async loadData() {
@@ -697,16 +774,28 @@ export const LibraryModule = {
         this.state.pendingImageRemoved = false;
 
         const root = this.container;
+        const defaultGroup = this.state.currentFilter.type === "group" ? (this.state.currentFilter.value || "") : "";
+
         root.querySelector("#itemModalTitle").textContent = "New Library Item";
         root.querySelector("#itemTitleInput").value = "";
         root.querySelector("#itemTextInput").value = "";
         root.querySelector("#itemTagsInput").value = "";
         root.querySelector("#itemFavCheckbox").checked = false;
         root.querySelector("#itemDoneCheckbox").checked = false;
-        root.querySelector("#itemGroupSelect").value = this.state.currentFilter.type === "group" ? this.state.currentFilter.value : "";
+        root.querySelector("#itemGroupSelect").value = defaultGroup;
         root.querySelector("#itemImagePreviewWrap").style.display = "none";
         root.querySelector("#itemImagePreviewImg").src = "";
         root.querySelector("#itemRemoveImageBtn").style.display = "none";
+
+        this.state.itemModalBaseline = {
+            title: "",
+            text: "",
+            tags: "",
+            favorite: false,
+            done: false,
+            group: defaultGroup,
+            hasImage: false
+        };
 
         root.querySelector("#itemModal").classList.add("show");
         root.querySelector("#itemTitleInput").focus();
@@ -721,13 +810,16 @@ export const LibraryModule = {
         this.state.pendingImageRemoved = false;
 
         const root = this.container;
+        const tagsStr = (item.tags || []).join(", ");
+        const groupVal = item.group || "";
+
         root.querySelector("#itemModalTitle").textContent = "Edit Item";
         root.querySelector("#itemTitleInput").value = item.title || "";
         root.querySelector("#itemTextInput").value = item.text || "";
-        root.querySelector("#itemTagsInput").value = (item.tags || []).join(", ");
+        root.querySelector("#itemTagsInput").value = tagsStr;
         root.querySelector("#itemFavCheckbox").checked = !!item.favorite;
         root.querySelector("#itemDoneCheckbox").checked = !!item.done;
-        root.querySelector("#itemGroupSelect").value = item.group || "";
+        root.querySelector("#itemGroupSelect").value = groupVal;
 
         if (item.image) {
             const src = item.image instanceof Blob ? URL.createObjectURL(item.image) : item.image;
@@ -739,12 +831,76 @@ export const LibraryModule = {
             root.querySelector("#itemRemoveImageBtn").style.display = "none";
         }
 
+        this.state.itemModalBaseline = {
+            title: item.title || "",
+            text: item.text || "",
+            tags: tagsStr,
+            favorite: !!item.favorite,
+            done: !!item.done,
+            group: groupVal,
+            hasImage: !!item.image
+        };
+
         root.querySelector("#itemModal").classList.add("show");
     },
 
     closeItemModal() {
         this.container.querySelector("#itemModal").classList.remove("show");
         this.state.pendingImageBlob = null;
+        this.state.pendingImageRemoved = false;
+        this.state.itemModalBaseline = null;
+    },
+
+    closeDetailModal() {
+        const modal = this.container.querySelector("#detailModal");
+        if (modal) modal.classList.remove("show");
+        this.state.detailItemId = null;
+    },
+
+    hasItemModalUnsavedChanges() {
+        const root = this.container;
+        const modal = root.querySelector("#itemModal");
+        if (!modal || !modal.classList.contains("show")) return false;
+
+        const base = this.state.itemModalBaseline;
+        if (!base) return false;
+
+        const currTitle = (root.querySelector("#itemTitleInput")?.value || "").trim();
+        const currText = (root.querySelector("#itemTextInput")?.value || "").trim();
+        const currTags = (root.querySelector("#itemTagsInput")?.value || "").trim();
+        const currGroup = root.querySelector("#itemGroupSelect")?.value || "";
+        const currFav = !!root.querySelector("#itemFavCheckbox")?.checked;
+        const currDone = !!root.querySelector("#itemDoneCheckbox")?.checked;
+
+        const baseTitle = (base.title || "").trim();
+        const baseText = (base.text || "").trim();
+        const baseTags = (base.tags || "").trim();
+        const baseGroup = base.group || "";
+        const baseFav = !!base.favorite;
+        const baseDone = !!base.done;
+
+        if (currTitle !== baseTitle) return true;
+        if (currText !== baseText) return true;
+        if (currTags !== baseTags) return true;
+        if (currGroup !== baseGroup) return true;
+        if (currFav !== baseFav) return true;
+        if (currDone !== baseDone) return true;
+
+        if (this.state.pendingImageBlob !== null) return true;
+        if (this.state.pendingImageRemoved) return true;
+
+        return false;
+    },
+
+    shakeModal(modalEl) {
+        if (!modalEl) return;
+        const win = modalEl.querySelector(".modal-window");
+        if (win) {
+            win.classList.remove("shake");
+            void win.offsetWidth;
+            win.classList.add("shake");
+            setTimeout(() => win.classList.remove("shake"), 350);
+        }
     },
 
     async saveItem() {
@@ -1058,6 +1214,7 @@ export const LibraryModule = {
 
     openGroupModal() {
         this.container.querySelector("#groupNameInput").value = "";
+        this.state.groupModalBaseline = "";
         this.container.querySelector("#groupModal").classList.add("show");
         this.container.querySelector("#groupNameInput").focus();
     },

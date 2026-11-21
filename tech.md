@@ -135,6 +135,10 @@ Organize, view, filter, copy, and maintain pairs of prompt text and generated im
 7. **Export & Import:**
    - **Export / Auto-Backup:** Translates internal UUIDs into human-readable group names (e.g. `"group": "In"`), formats as formatted JSON, preserves `done` completion status, downloads locally, and automatically saves to `backups/` via `POST /save-backup`.
    - **Import JSON:** Merges or restores items, automatically creating referenced groups if they do not yet exist, and restoring `done` status.
+8. **Modal Dismiss & Unsaved Changes Guard:**
+   - When viewing saved item details (`#detailModal`) with no changes, pressing `Escape` or clicking outside the dialog (on the backdrop) immediately closes the modal.
+   - In Create/Edit Item modal (`#itemModal`), if no changes have been made from initial state, pressing `Escape` or clicking outside closes the modal.
+   - If unsaved changes are present in `#itemModal` (text edited, tags altered, group/status changed, or image added/removed), pressing `Escape` or clicking outside will NOT close the dialog (`shakeModal` feedback + warning toast to prevent accidental data loss). Only explicit Save or Cancel closes it.
 
 ---
 
@@ -419,6 +423,20 @@ python -m PyInstaller --clean PandaStudio.spec
 - **Expected:** Gallery filters to show only completed (greyed-out) items.
 - **Steps:** Select 3 checkboxes on cards. Header displays `✓ Mark Done` and `↩ Mark Incomplete`. Click `✓ Mark Done`.
 - **Expected:** All 3 items are marked as done in bulk and immediately become greyed out.
+
+#### TC-1.12: Modal Dismiss & Unsaved Changes Guard
+- **Steps:** Click on an existing card to open Item Details (`#detailModal`). Press `Escape`.
+- **Expected:** Modal closes immediately.
+- **Steps:** Open `#detailModal` again. Click anywhere on the dark backdrop outside the modal dialog.
+- **Expected:** Modal closes immediately.
+- **Steps:** Click `＋ New Item` to open `#itemModal`. Without typing anything, press `Escape` or click outside.
+- **Expected:** Modal closes immediately.
+- **Steps:** Click `✏️ Edit` on an existing item (or `＋ New Item`). Type new text in the Title or Description field. Press `Escape`.
+- **Expected:** Modal **does NOT close**; it shakes subtly and displays warning toast *"Unsaved changes: click Save or Cancel to exit"*.
+- **Steps:** Click on the dark backdrop outside the modal dialog.
+- **Expected:** Modal **does NOT close** and stays open.
+- **Steps:** Click explicit `Cancel` or `Save Item`.
+- **Expected:** Modal closes.
 
 ---
 

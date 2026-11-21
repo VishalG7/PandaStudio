@@ -96,6 +96,10 @@ If any file throws a syntax error, fix it immediately.
 - Toggling completion status immediately updates IndexedDB (`dbPut("items", item)`), re-renders the gallery and sidebar badges (`allCountBadge`, `pendingCountBadge`, `doneCountBadge`), logs the action via `this.app.log(...)`, and does not reload the page.
 - Item export/backup and import/sync MUST preserve the `done` status.
 
+### 13. Tab 1 Modal Dismiss & Unsaved Changes Guard Invariants
+- When an item dialog is open with NO changes (`#detailModal` or pristine/untouched `#itemModal`), pressing `Escape` or clicking on the backdrop outside the dialog MUST close the dialog cleanly.
+- If `#itemModal` contains UNSAVED changes (title, description, tags, group, favorite, or done edited, or image attached/removed), pressing `Escape` or clicking outside MUST NOT close the dialog. It MUST remain open to prevent accidental data loss until the user explicitly clicks `Save Item` or `Cancel`.
+
 ---
 
 ## 🏛 Micro-Kernel Architecture & Adding New Modules
