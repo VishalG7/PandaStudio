@@ -250,9 +250,60 @@ body {
 
 /* ---------------- BUTTONS & CONTROLS ---------------- */
 
-button, input, textarea, select {
-    font-family: inherit;
+button, input, textarea, select, optgroup, option {
+    font-family: var(--font-sans);
     font-size: 14px;
+}
+
+code, kbd, samp, pre {
+    font-family: var(--font-mono);
+}
+
+small {
+    font-family: var(--font-sans);
+    font-size: 12px;
+}
+
+/* Unified styling for native file inputs and file selector buttons */
+input[type="file"] {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    color: var(--text-secondary);
+}
+
+input[type="file"]::file-selector-button,
+input[type="file"]::-webkit-file-upload-button {
+    font-family: var(--font-sans);
+    font-size: 13px;
+    font-weight: 500;
+    padding: 6px 14px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-card);
+    color: var(--text-primary);
+    cursor: pointer;
+    margin-right: 12px;
+    transition: all 0.15s ease;
+    line-height: 1.4;
+}
+
+input[type="file"]::file-selector-button:hover,
+input[type="file"]::-webkit-file-upload-button:hover {
+    background: var(--bg-card-hover);
+    border-color: #cbd5e1;
+}
+
+[data-theme="dark"] input[type="file"]::file-selector-button,
+[data-theme="dark"] input[type="file"]::-webkit-file-upload-button {
+    background: var(--bg-card);
+    border-color: var(--border);
+    color: var(--text-primary);
+}
+
+[data-theme="dark"] input[type="file"]::file-selector-button:hover,
+[data-theme="dark"] input[type="file"]::-webkit-file-upload-button:hover {
+    background: var(--bg-card-hover);
+    border-color: var(--border-focus);
 }
 
 .btn {
@@ -322,6 +373,18 @@ button, input, textarea, select {
     padding: 5px 10px;
     font-size: 12.5px;
     border-radius: var(--radius-sm);
+}
+
+.btn-subtle {
+    background: transparent;
+    border-color: transparent;
+    color: var(--text-muted);
+}
+
+.btn-subtle:hover {
+    background: var(--bg-main);
+    color: var(--text-primary);
+    border-color: var(--border);
 }
 
 .btn-icon-only {

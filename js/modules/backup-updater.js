@@ -74,19 +74,25 @@ export const BackupUpdaterModule = {
                     <div class="updater-card">
                         <div class="card-title-row">
                             <h3><span>📝 2. Input Updates JSON</span></h3>
-                            <div style="display:flex; gap:6px;">
+                            <div style="display:flex; gap:6px; align-items:center;">
                                 <button class="btn btn-sm" id="updaterTemplateBtn" title="Insert sample JSON">📋 Sample</button>
-                                <button class="btn btn-sm" id="updaterUploadBtn">📂 Load File</button>
+                                <button class="btn btn-sm" id="updaterUploadBtn">📂 Choose JSON File</button>
+                                <span class="file-picker-badge" id="updaterPatchFileBadge" style="display:none; max-width:200px;"></span>
                                 <input type="file" id="updaterPatchFileInput" accept=".json" style="display:none;">
                             </div>
                         </div>
 
-                        <!-- Target Group Input Field -->
+                        <!-- Target Group Input Field & Dropdown -->
                         <div class="form-group" style="margin-bottom:14px;">
-                            <label class="form-label" for="updaterTargetGroupInput">Target Group Name (Applies to all input items):</label>
-                            <input type="text" id="updaterTargetGroupInput" class="form-input" list="updaterExistingGroupsList" placeholder="e.g. Poems, Scenes, Anthill Chronicles">
-                            <datalist id="updaterExistingGroupsList"></datalist>
-                            <div class="form-hint">Every item in this input will be assigned to this group name in the backup.</div>
+                            <label class="form-label" for="updaterTargetGroupSelect">Target Group Name (Applies to all input items):</label>
+                            <div style="display:flex; gap:8px;">
+                                <select id="updaterTargetGroupSelect" class="form-select" style="flex:1;">
+                                    <option value="">-- Choose Existing Group from Backup --</option>
+                                </select>
+                                <input type="text" id="updaterTargetGroupInput" class="form-input" style="flex:1;" list="updaterExistingGroupsList" placeholder="Or type new / custom group name">
+                                <datalist id="updaterExistingGroupsList"></datalist>
+                            </div>
+                            <div class="form-hint">Select a group available in the latest backup JSON or type a new custom group. Every item in this input will be assigned to this group.</div>
                         </div>
 
                         <div class="form-hint" style="margin-bottom:8px;">
@@ -94,11 +100,19 @@ export const BackupUpdaterModule = {
                         </div>
 
                         <textarea id="updaterJsonTextarea" class="json-input-textarea" placeholder='{\n  "item1": {\n    "id": "abcd",\n    "title": "1",\n    "text": "SCENE 04 — THE ANT BABIES ARE IN DANGER..."\n  },\n  "item2": {\n    "id": "item2",\n    "title": "2",\n    "text": "SCENE 05 — THE WORKER ANTS..."\n  }\n}'></textarea>
-<div class="form-group" style="margin-top:12px;">
-    <label class="form-label" for="updaterImageFolder">📁 Image folder (optional)</label>
-    <input type="file" id="updaterImageFolder" multiple webkitdirectory>
-    <small>Images must be named exactly as the title (e.g. 1.jpg, 2.png). If not provided, image stays null.</small>
-</div>
+
+                        <div class="form-group" style="margin-top:14px;">
+                            <label class="form-label">📁 Image Folder (Optional):</label>
+                            <div class="file-picker-control">
+                                <input type="file" id="updaterImageFolder" multiple webkitdirectory style="display:none;">
+                                <button type="button" class="btn btn-sm" id="updaterPickFolderBtn">
+                                    <span>📁 Choose Image Folder...</span>
+                                </button>
+                                <span class="file-picker-badge" id="updaterImageFolderBadge">No folder selected</span>
+                                <button type="button" class="btn btn-sm btn-subtle" id="updaterClearFolderBtn" style="display:none;" title="Clear folder selection">✕ Clear</button>
+                            </div>
+                            <div class="form-hint">Images must be named exactly as the item title (e.g. <code>1.jpg</code>, <code>2.png</code>). If not provided, existing images in backup remain unchanged.</div>
+                        </div>
 
                         <!-- Merge & Sync Options -->
                         <div class="updater-options-box" style="margin-top:12px; display:flex; flex-direction:column; gap:6px; background:var(--bg-main); padding:10px 12px; border-radius:var(--radius-sm); border:1px solid var(--border);">
@@ -199,11 +213,42 @@ export const BackupUpdaterModule = {
         uploadBtn.onclick = () => patchFileInput.click();
         patchFileInput.onchange = e => this.handlePatchFileUpload(e);
 
+        // Target Group selector & input two-way sync
+        const groupSelect = root.querySelector("#updaterTargetGroupSelect");
+        const groupInput = root.querySelector("#updaterTargetGroupInput");
+        if (groupSelect && groupInput) {
+            groupSelect.onchange = () => {
+                if (groupSelect.value) {
+                    groupInput.value = groupSelect.value;
+                }
+            };
+            groupInput.oninput = () => {
+                const val = groupInput.value.trim().toLowerCase();
+                let matched = false;
+                for (let i = 0; i < groupSelect.options.length; i++) {
+                    if (groupSelect.options[i].value.toLowerCase() === val) {
+                        groupSelect.selectedIndex = i;
+                        matched = true;
+                        break;
+                    }
+                }
+                if (!matched) {
+                    groupSelect.value = "";
+                }
+            };
+        }
+
         // Sample template
         root.querySelector("#updaterTemplateBtn").onclick = () => this.insertSampleTemplate();
         root.querySelector("#updaterClearBtn").onclick = () => {
             root.querySelector("#updaterJsonTextarea").value = "";
             root.querySelector("#updaterResultSection").style.display = "none";
+            const patchBadge = root.querySelector("#updaterPatchFileBadge");
+            if (patchBadge) {
+                patchBadge.textContent = "";
+                patchBadge.style.display = "none";
+                patchBadge.classList.remove("has-files");
+            }
         };
 
         // Merge button
@@ -215,16 +260,54 @@ export const BackupUpdaterModule = {
         root.querySelector("#updaterDownloadBtn").onclick = () => this.downloadJson();
         root.querySelector("#updaterSyncLibraryBtn").onclick = () => this.syncToIndexedDB();
 
-        // Image folder selector
-        root.querySelector("#updaterImageFolder").onchange = e => this.handleImageFolderSelect(e);
+        // Image folder selector controls
+        const folderInput = root.querySelector("#updaterImageFolder");
+        const pickFolderBtn = root.querySelector("#updaterPickFolderBtn");
+        const clearFolderBtn = root.querySelector("#updaterClearFolderBtn");
+
+        if (pickFolderBtn && folderInput) {
+            pickFolderBtn.onclick = () => folderInput.click();
+        }
+        if (folderInput) {
+            folderInput.onchange = e => this.handleImageFolderSelect(e);
+        }
+        if (clearFolderBtn && folderInput) {
+            clearFolderBtn.onclick = () => {
+                folderInput.value = "";
+                this.state.imageFolder = null;
+                const badge = root.querySelector("#updaterImageFolderBadge");
+                if (badge) {
+                    badge.textContent = "No folder selected";
+                    badge.classList.remove("has-files");
+                }
+                clearFolderBtn.style.display = "none";
+                this.app.log(this.id, "Image folder selection cleared");
+                this.app.showToast("Image folder cleared", "info");
+            };
+        }
     },
 
     handleImageFolderSelect(event) {
-        const files = Array.from(event.target.files || []);
+        const files = Array.from(event.target.files || []).filter(f => f.type.startsWith("image/"));
         this.state.imageFolder = files.length > 0 ? files : null;
-        this.app.log(this.id, `Image folder selected (${files.length} files)`, files.map(f => f.name));
+        
+        const badge = this.container.querySelector("#updaterImageFolderBadge");
+        const clearBtn = this.container.querySelector("#updaterClearFolderBtn");
+
         if (files.length > 0) {
+            if (badge) {
+                badge.textContent = `📁 ${files.length} image file(s) selected`;
+                badge.classList.add("has-files");
+            }
+            if (clearBtn) clearBtn.style.display = "inline-flex";
+            this.app.log(this.id, `Image folder selected (${files.length} images)`, files.map(f => f.name));
             this.app.showToast(`Selected ${files.length} image files from folder`, "info");
+        } else {
+            if (badge) {
+                badge.textContent = "No image files found in folder";
+                badge.classList.remove("has-files");
+            }
+            if (clearBtn) clearBtn.style.display = "none";
         }
     },
 
@@ -275,23 +358,79 @@ export const BackupUpdaterModule = {
     },
 
     populateExistingGroupsList() {
+        const select = this.container.querySelector("#updaterTargetGroupSelect");
         const datalist = this.container.querySelector("#updaterExistingGroupsList");
         const input = this.container.querySelector("#updaterTargetGroupInput");
-        if (!datalist || !this.state.latestBackupData) return;
+        if (!this.state.latestBackupData) return;
 
-        datalist.innerHTML = "";
-        const groupNames = (this.state.latestBackupData.groups || []).map(g => {
-            return typeof g === "object" && g !== null && g.name ? g.name : String(g);
-        }).filter(Boolean);
+        const groupMap = new Map(); // lowercase -> display name
+        const idToName = new Map();
 
-        groupNames.forEach(name => {
-            const opt = document.createElement("option");
-            opt.value = name;
-            datalist.appendChild(opt);
-        });
+        // 1. Groups array from backup JSON (supports string array or object array with name/title/id)
+        if (Array.isArray(this.state.latestBackupData.groups)) {
+            for (const g of this.state.latestBackupData.groups) {
+                let name = "";
+                if (typeof g === "string") {
+                    name = g.trim();
+                } else if (typeof g === "object" && g !== null) {
+                    name = (g.name || g.title || "").trim();
+                    if (g.id && name) {
+                        idToName.set(String(g.id), name);
+                    }
+                }
+                if (name && !groupMap.has(name.toLowerCase())) {
+                    groupMap.set(name.toLowerCase(), name);
+                }
+            }
+        }
 
-        if (input && !input.value.trim() && groupNames.length > 0) {
-            input.value = groupNames[0];
+        // 2. Scan items in backup JSON to catch any groups only defined on items
+        if (Array.isArray(this.state.latestBackupData.items)) {
+            for (const it of this.state.latestBackupData.items) {
+                if (!it || !it.group) continue;
+                let gVal = String(it.group).trim();
+                if (idToName.has(gVal)) {
+                    gVal = idToName.get(gVal);
+                }
+                if (gVal && gVal !== "null" && gVal !== "undefined" && !groupMap.has(gVal.toLowerCase())) {
+                    groupMap.set(gVal.toLowerCase(), gVal);
+                }
+            }
+        }
+
+        const sortedGroupNames = Array.from(groupMap.values()).sort((a, b) => a.localeCompare(b));
+
+        if (select) {
+            select.innerHTML = '<option value="">-- Choose Existing Group from Backup --</option>';
+            sortedGroupNames.forEach(name => {
+                const opt = document.createElement("option");
+                opt.value = name;
+                opt.textContent = `📁 ${name}`;
+                select.appendChild(opt);
+            });
+        }
+
+        if (datalist) {
+            datalist.innerHTML = "";
+            sortedGroupNames.forEach(name => {
+                const opt = document.createElement("option");
+                opt.value = name;
+                datalist.appendChild(opt);
+            });
+        }
+
+        // Default input to first group if currently empty
+        if (input && !input.value.trim() && sortedGroupNames.length > 0) {
+            input.value = sortedGroupNames[0];
+            if (select) select.value = sortedGroupNames[0];
+        } else if (input && input.value.trim() && select) {
+            const current = input.value.trim().toLowerCase();
+            for (let i = 0; i < select.options.length; i++) {
+                if (select.options[i].value.toLowerCase() === current) {
+                    select.selectedIndex = i;
+                    break;
+                }
+            }
         }
     },
 
@@ -335,6 +474,12 @@ export const BackupUpdaterModule = {
             // Validate JSON
             JSON.parse(text);
             this.container.querySelector("#updaterJsonTextarea").value = text;
+            const patchBadge = this.container.querySelector("#updaterPatchFileBadge");
+            if (patchBadge) {
+                patchBadge.textContent = `📄 ${file.name}`;
+                patchBadge.style.display = "inline-flex";
+                patchBadge.classList.add("has-files");
+            }
             this.app.log(this.id, `Input patch JSON file loaded: ${file.name}`);
             this.app.showToast(`Loaded updates from ${file.name}`, "success");
         } catch (err) {
@@ -367,8 +512,14 @@ export const BackupUpdaterModule = {
         this.container.querySelector("#updaterJsonTextarea").value = JSON.stringify(template, null, 4);
 
         const targetGroupInput = this.container.querySelector("#updaterTargetGroupInput");
+        const targetGroupSelect = this.container.querySelector("#updaterTargetGroupSelect");
         if (targetGroupInput && !targetGroupInput.value.trim()) {
-            targetGroupInput.value = "Poems";
+            if (targetGroupSelect && targetGroupSelect.options.length > 1) {
+                targetGroupSelect.selectedIndex = 1;
+                targetGroupInput.value = targetGroupSelect.value;
+            } else {
+                targetGroupInput.value = "Poems";
+            }
         }
 
         this.app.log(this.id, "Sample template inserted into Input JSON");
@@ -382,10 +533,11 @@ export const BackupUpdaterModule = {
         }
 
         const targetGroupInput = this.container.querySelector("#updaterTargetGroupInput");
-        const targetGroupName = (targetGroupInput?.value || "").trim();
+        const targetGroupSelect = this.container.querySelector("#updaterTargetGroupSelect");
+        const targetGroupName = (targetGroupInput?.value || targetGroupSelect?.value || "").trim();
 
         if (!targetGroupName) {
-            this.app.showToast("Please specify a Target Group Name on the panel.", "error");
+            this.app.showToast("Please specify or select a Target Group Name.", "error");
             targetGroupInput?.focus();
             return;
         }
@@ -812,10 +964,15 @@ export const BackupUpdaterModule = {
         this.app.log(this.id, `Synced merged data to IndexedDB: ${data.items.length} items, ${data.groups.length} groups`);
         this.app.showToast("Active library database synced successfully!", "success");
 
-        // If Library module is loaded, refresh its data
+        // If Library module is loaded, refresh its data immediately so Tab 1 stays updated
         const libMod = App.modules.get("library");
         if (libMod && libMod.initialized) {
-            libMod.loadData();
+            try {
+                await libMod.loadData();
+                this.app.log(this.id, "Refreshed Tab 1 (Image & Text Library) data from IndexedDB");
+            } catch (err) {
+                console.error("[BackupUpdater] Error refreshing LibraryModule data:", err);
+            }
         }
     },
 

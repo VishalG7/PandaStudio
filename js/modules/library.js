@@ -41,6 +41,15 @@ export const LibraryModule = {
         }
     },
 
+    async onActivate() {
+        // Automatically reload data from IndexedDB whenever user switches to this tab
+        try {
+            await this.loadData();
+        } catch (err) {
+            console.error("[LibraryModule] onActivate reload error:", err);
+        }
+    },
+
     renderShell() {
         this.container.innerHTML = `
             <div class="library-layout">

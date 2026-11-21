@@ -139,6 +139,9 @@ Organize, view, filter, copy, and maintain pairs of prompt text and generated im
    - When viewing saved item details (`#detailModal`) with no changes, pressing `Escape` or clicking outside the dialog (on the backdrop) immediately closes the modal.
    - In Create/Edit Item modal (`#itemModal`), if no changes have been made from initial state, pressing `Escape` or clicking outside closes the modal.
    - If unsaved changes are present in `#itemModal` (text edited, tags altered, group/status changed, or image added/removed), pressing `Escape` or clicking outside will NOT close the dialog (`shakeModal` feedback + warning toast to prevent accidental data loss). Only explicit Save or Cancel closes it.
+9. **Reactive Tab Re-activation (`onActivate` hook):**
+   - Implements `onActivate()` lifecycle hook in `LibraryModule`.
+   - Whenever the user switches to Tab 1 from any other tab, the kernel invokes `onActivate()`, which re-queries IndexedDB and re-renders groups and items. This guarantees that background syncs from Tab 3 are immediately visible without requiring a full browser reload.
 
 ---
 
@@ -188,10 +191,10 @@ Upload 2×2 composite images (e.g. Midjourney grids), excise white dividing line
 Takes external input JSON (e.g. generated prompt scripts) containing only `id`, `title`, and `text`, pairs with an image folder, and merges into the latest backup JSON while preserving existing images and assigning a target group name.
 
 #### Core Features
-1. **Target Group Assignment:**
-   - User inputs a single Target Group Name (e.g. `In`, `Poems`, `SouthPark`).
-   - Datalist auto-completes with existing groups from the base backup.
-   - All input items are assigned to this group name.
+1. **Target Group Assignment & Two-Way Synchronized Dropdown:**
+   - Features a combined `<select id="updaterTargetGroupSelect">` dropdown and text input `<input id="updaterTargetGroupInput">`.
+   - Comprehensive group extraction: Scans both root `groups` array (string names or `{ id, name }` objects) AND all unique non-empty `item.group` properties across the latest backup JSON.
+   - Live two-way synchronization: selecting a group from the dropdown populates the input; typing a custom group name allows defining new groups effortlessly.
 2. **Base Backup Source:**
    - Automatically loads latest backup from `GET /api/latest-backup`.
    - "Refresh" button re-queries the server.
@@ -200,10 +203,10 @@ Takes external input JSON (e.g. generated prompt scripts) containing only `id`, 
    - **Priority 1 (Match by ID):** Matches `update.id === item.id`.
    - **Priority 2 (Match by Title in Target Group):** If ID doesn't match, matches by `item.title === update.title` within the target group.
    - **Priority 3 (Match by Title among Orphan Items):** Matches orphan items with `group: null` having the same title.
-4. **Image Folder Pairing:**
-   - User selects an image folder via directory picker (`<input webkitdirectory>`).
-   - Slices/images are mapped by filename without extension (e.g. `1.png` → title `"1"`).
-   - Matched images are converted to Base64 data URLs and attached to items.
+4. **Enhanced File Pickers & Image Folder Control:**
+   - Image folder selector is upgraded to a styled `.file-picker-control` with custom action button (`#updaterPickFolderBtn`), active selection badge (`#updaterImageFolderBadge`), and one-click clear button (`#updaterClearFolderBtn`).
+   - Patch JSON input features a file badge (`#updaterPatchFileBadge`) displaying loaded filename.
+   - Unified font family tokens ensure all inputs, buttons, dropdowns, and file selectors inherit `'Inter'` (`var(--font-sans)`).
 5. **Orphan & Duplicate Cleaning Options:**
    - `🧹 Purge imageless ghost items`: Removes orphan items with no group and no image, and purges imageless duplicates within the target group.
    - `🎯 Match by Title if ID doesn't match`: Prevents creating duplicate entries for items with UUIDs.
@@ -213,7 +216,7 @@ Takes external input JSON (e.g. generated prompt scripts) containing only `id`, 
    - **Update Backup In-Place:** Overwrites the current base file on disk (`POST /api/update-backup` with `overwrite: true`).
    - **Save as New Snapshot:** Creates a new timestamped file `library-backup-YYYYMMDD_HHMMSS.json`.
    - **Download JSON File:** Direct client download.
-   - **Apply & Sync into Active Library:** Directly syncs merged items into browser IndexedDB.
+   - **Apply & Sync into Active Library:** Directly syncs merged items into browser IndexedDB and immediately triggers `await LibraryModule.loadData()`, ensuring Tab 1 reflects all synced items and groups without a manual page reload.
 
 ---
 

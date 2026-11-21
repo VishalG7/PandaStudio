@@ -165,7 +165,7 @@ Computer-vision panel splitter for 2×2 composite images:
 
 ### Tab 3: 🔄 Backup JSON Updater & Sync (`backup-updater`)
 Smart reconciliation and merge engine for scene prompts:
-- **Targeted Group Assignment:** Accepts simple prompt input JSON (containing `id`, `title`, `text`) and applies a single Target Group Name to all entries.
+- **Targeted Group Selector & Dropdown:** Dropdown automatically displays all existing groups discovered across the latest backup JSON (both `groups` array and item properties), with two-way synchronization to a custom text input.
 - **Auto-Loads Latest Backup:** Fetches the newest snapshot in `backups/` from the backend automatically.
 - **Smart Matching Hierarchy:**
   1. Matches by exact `id`.
@@ -173,7 +173,8 @@ Smart reconciliation and merge engine for scene prompts:
   3. Matches by `title` among unassigned items.
 - **Data & Image Preservation:** Preserves existing binary Base64 images, tags, and favorites. Never deletes image data unless replaced.
 - **Ghost Item Prevention:** Automatically sweeps and eliminates empty imageless duplicate records.
-- **Action Options:** Previews an item-by-item diff table, updates backup in-place on disk, saves a new snapshot, downloads JSON, or syncs directly into the live browser IndexedDB.
+- **Enhanced File Pickers:** Polished Choose Files buttons for image folders and JSON patches with status badges and consistent typography.
+- **Instant Live Sync to Tab 1:** Previews an item-by-item diff table, updates backup in-place on disk, saves a new snapshot, downloads JSON, or syncs directly into the live browser IndexedDB with instantaneous Tab 1 auto-refresh (no manual reload needed).
 
 ---
 

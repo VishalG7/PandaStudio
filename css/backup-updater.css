@@ -193,3 +193,45 @@
     font-size: 11px;
     font-weight: 600;
 }
+
+/* ---------------- FILE PICKER ENHANCEMENTS ---------------- */
+
+.file-picker-control {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin-top: 6px;
+    margin-bottom: 4px;
+    flex-wrap: wrap;
+}
+
+.file-picker-badge {
+    font-size: 12.5px;
+    font-family: var(--font-sans);
+    color: var(--text-muted);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    padding: 5px 12px;
+    border-radius: var(--radius-sm);
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    max-width: 380px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    transition: all 0.15s ease;
+}
+
+.file-picker-badge.has-files {
+    color: var(--primary);
+    background: var(--primary-light);
+    border-color: rgba(99, 102, 241, 0.35);
+    font-weight: 500;
+}
+
+[data-theme="dark"] .file-picker-badge.has-files {
+    color: #a5b4fc;
+    background: rgba(99, 102, 241, 0.15);
+    border-color: rgba(99, 102, 241, 0.4);
+}

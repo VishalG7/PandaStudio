@@ -100,6 +100,20 @@ If any file throws a syntax error, fix it immediately.
 - When an item dialog is open with NO changes (`#detailModal` or pristine/untouched `#itemModal`), pressing `Escape` or clicking on the backdrop outside the dialog MUST close the dialog cleanly.
 - If `#itemModal` contains UNSAVED changes (title, description, tags, group, favorite, or done edited, or image attached/removed), pressing `Escape` or clicking outside MUST NOT close the dialog. It MUST remain open to prevent accidental data loss until the user explicitly clicks `Save Item` or `Cancel`.
 
+### 14. Tab 3 Sync & Tab 1 Reactive Auto-Refresh Invariants
+- When `Apply & Sync into Active Library (IndexedDB)` is clicked in Tab 3, the synchronizer MUST directly invoke `await libMod.loadData()` if `LibraryModule` is initialized so Tab 1 state is immediately fresh.
+- `LibraryModule` MUST implement `async onActivate() { await this.loadData(); }` so that whenever the user switches to Tab 1, it queries IndexedDB and re-renders groups and items. Tab 1 content must NEVER require a manual browser reload to display newly synced items.
+
+### 15. Tab 3 Target Group Dropdown & Selection Invariants
+- `populateExistingGroupsList()` in Tab 3 MUST scan both the root `groups` array (strings and `{ id, name }` objects) AND all unique non-empty `group` fields inside `items`.
+- It MUST populate the `#updaterTargetGroupSelect` dropdown and keep it in two-way sync with the `#updaterTargetGroupInput` text field.
+- Users must be able to easily select an existing group from the dropdown or type a custom group name.
+
+### 16. File Picker UI & Global Font Consistency Invariants
+- All form inputs, buttons, selects, options, and file pickers across the entire app MUST strictly inherit `var(--font-sans)` (`'Inter'`).
+- Native file inputs must not be left unstyled. Image folder and JSON loaders must use styled `.btn` triggers, `.file-picker-control`, and `.file-picker-badge` status pills.
+- Browser native `input[type="file"]::file-selector-button` MUST be styled to match `.btn.btn-sm` in both light and dark themes.
+
 ---
 
 ## 🏛 Micro-Kernel Architecture & Adding New Modules
