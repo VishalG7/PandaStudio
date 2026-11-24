@@ -277,6 +277,9 @@ Generates high-fidelity natural neural speech from text or video prompts using f
 5. **Interactive Audio Player:**
    - Dedicated player card with HTML5 audio player, time progress, and auto-play upon synthesis.
    - Action controls: `⬇️ Download MP3`, `📋 Copy Link`, `▶️ Play Again`.
+   - **Compact, Non-Expanding UI Layout:** Designed with `minmax(0, 1fr)` constraints, automatic element wrapping (`overflow-wrap: anywhere; word-break: break-word`), and zero unnecessary vertical or horizontal scrollbars.
+   - **Reliable In-Memory Blob Downloads:** Audio downloads fetch into in-memory `Blob` objects and download directly through `URL.createObjectURL(blob)`, completely eliminating browser download interruptions and "file wasn't available on site" errors.
+   - **HTTP 206 Partial Content & Range Streaming:** Backend server supports `Range: bytes=start-end` requests for instant seek/scrubbing and sends `Content-Disposition: attachment` when `download=1` is passed.
 6. **Local Generation History:**
    - Chronological list of previously generated audio files.
    - Quick play/pause buttons, voice badges, text previews, timestamps, and file sizes.

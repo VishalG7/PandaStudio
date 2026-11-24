@@ -119,6 +119,8 @@ If any file throws a syntax error, fix it immediately.
 - Generates high-fidelity neural audio via backend endpoint `POST /api/tts/generate` powered by Python `edge-tts`.
 - Output MP3 files are automatically stored in the local `audio/` directory alongside structured `.json` metadata files.
 - Generated audio must be playable immediately in the HTML5 player, downloadable as `.mp3`, and removable from local disk via `POST /api/tts/delete`.
+- Audio downloads must use in-memory Blob conversion to prevent browser download interruption and "file wasn't available on site" errors.
+- Right-side player & history panel must use `minmax(0, 1fr)` and text-wrapping (`overflow-wrap: anywhere`) to prevent unnecessary horizontal and vertical scrollbars.
 - Provides freely available neural voice models across multiple languages and accents (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian).
 - Text-to-speech actions, voice selections, and downloads must be logged via `this.app.log(...)`.
 

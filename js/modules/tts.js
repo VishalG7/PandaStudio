@@ -477,6 +477,7 @@ export const TtsModule = {
         const actionsEl = this.container.querySelector("#ttsPlayerActions");
 
         titleEl.textContent = item.filename;
+        titleEl.title = item.filename;
         const voiceShort = (item.voice || "").replace("Neural", "");
         const sizeKb = item.size ? (item.size / 1024).toFixed(1) + " KB" : "";
         metaEl.textContent = `Voice: ${voiceShort} • Size: ${sizeKb} • Saved locally`;
@@ -555,15 +556,40 @@ export const TtsModule = {
         }
     },
 
-    downloadAudio(url, filename) {
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = filename || "speech.mp3";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        this.app.showToast(`Downloading ${filename}`, "info");
-        this.app.log(this.id, `Downloaded audio: ${filename}`);
+    async downloadAudio(url, filename) {
+        this.app.showToast(`Downloading ${filename}...`, "info");
+        try {
+            const downloadUrl = url + (url.includes("?") ? "&" : "?") + "download=1";
+            const res = await fetch(downloadUrl);
+            if (!res.ok) {
+                throw new Error(`Server returned HTTP ${res.status}`);
+            }
+            const blob = await res.blob();
+            const blobUrl = URL.createObjectURL(blob);
+
+            const a = document.createElement("a");
+            a.href = blobUrl;
+            a.download = filename || "speech.mp3";
+            document.body.appendChild(a);
+            a.click();
+
+            setTimeout(() => {
+                document.body.removeChild(a);
+                URL.revokeObjectURL(blobUrl);
+            }, 2000);
+
+            this.app.showToast(`Saved to Downloads: ${filename}`, "success");
+            this.app.log(this.id, `Downloaded audio file: ${filename}`);
+        } catch (err) {
+            console.warn("[TTS Download] Blob fetch failed, falling back to direct anchor link:", err);
+            const a = document.createElement("a");
+            a.href = url + (url.includes("?") ? "&" : "?") + "download=1";
+            a.download = filename || "speech.mp3";
+            document.body.appendChild(a);
+            a.click();
+            setTimeout(() => document.body.removeChild(a), 500);
+            this.app.showToast(`Downloading via browser: ${filename}`, "info");
+        }
     },
 
     async deleteHistory(filename) {

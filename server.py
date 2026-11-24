@@ -27,6 +27,9 @@ DEFAULT_PORT = 6700
 if getattr(sys, "frozen", False) and hasattr(sys, "_MEIPASS"):
     BUNDLE_DIR = Path(sys._MEIPASS).resolve()
     EXE_DIR = Path(sys.executable).resolve().parent
+    # If running from within a dist/ folder inside the workspace, share the workspace data dirs
+    if EXE_DIR.name.lower() == "dist" and (EXE_DIR.parent / "index.html").exists():
+        EXE_DIR = EXE_DIR.parent
 else:
     BUNDLE_DIR = Path(__file__).resolve().parent
     EXE_DIR = BUNDLE_DIR
@@ -384,10 +387,104 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         elif clean_path == "/api/tts/history":
             self.handle_get_tts_history()
             return
+        if clean_path.startswith("/audio/") or clean_path.startswith("/api/audio/"):
+            self.handle_audio_stream()
+            return
         if clean_path.startswith("/api/"):
             self.send_json_response({"success": False, "error": f"Endpoint not found: {clean_path}"}, 404)
             return
         super().do_GET()
+
+    def do_HEAD(self):
+        clean_path = self.path.split("?")[0].rstrip("/")
+        if clean_path.startswith("/audio/") or clean_path.startswith("/api/audio/"):
+            self.handle_audio_stream(is_head=True)
+            return
+        super().do_HEAD()
+
+    def handle_audio_stream(self, is_head=False):
+        clean_path = self.path.split("?")[0]
+        if clean_path.startswith("/api/audio/"):
+            filename = clean_path[len("/api/audio/"):].lstrip("/")
+        elif clean_path.startswith("/audio/"):
+            filename = clean_path[len("/audio/"):].lstrip("/")
+        else:
+            filename = Path(clean_path).name
+
+        clean_filename = Path(filename).name
+        target_file = AUDIO_DIR / clean_filename
+        if not target_file.exists():
+            fallback = EXE_DIR.parent / "audio" / clean_filename
+            if fallback.exists():
+                target_file = fallback
+
+        if not target_file.exists() or not target_file.is_file():
+            self.send_error(404, f"Audio file not found: {clean_filename}")
+            return
+
+        file_size = target_file.stat().st_size
+        query_str = self.path.split("?")[1] if "?" in self.path else ""
+        is_download = "download=1" in query_str or "download=" in query_str
+
+        range_header = self.headers.get("Range")
+        start = 0
+        end = file_size - 1
+        status_code = 200
+
+        if range_header and range_header.startswith("bytes="):
+            try:
+                ranges = range_header[len("bytes="):].split("-")
+                if ranges[0]:
+                    start = int(ranges[0])
+                if len(ranges) > 1 and ranges[1]:
+                    end = int(ranges[1])
+                if start > end or start >= file_size:
+                    self.send_response(416)
+                    self.send_header("Content-Range", f"bytes */{file_size}")
+                    self.end_headers()
+                    return
+                status_code = 206
+            except ValueError:
+                start = 0
+                end = file_size - 1
+                status_code = 200
+
+        content_length = (end - start) + 1
+
+        self.send_response(status_code)
+        self.send_header("Content-Type", "audio/mpeg")
+        self.send_header("Accept-Ranges", "bytes")
+        self.send_header("Content-Length", str(content_length))
+        self.send_header("Cache-Control", "no-cache")
+
+        if status_code == 206:
+            self.send_header("Content-Range", f"bytes {start}-{end}/{file_size}")
+
+        if is_download:
+            self.send_header("Content-Disposition", f'attachment; filename="{clean_filename}"')
+
+        self.end_headers()
+
+        if is_head:
+            return
+
+        try:
+            with open(target_file, "rb") as f:
+                if start > 0:
+                    f.seek(start)
+                remaining = content_length
+                chunk_size = 65536
+                while remaining > 0:
+                    read_bytes = min(remaining, chunk_size)
+                    buf = f.read(read_bytes)
+                    if not buf:
+                        break
+                    self.wfile.write(buf)
+                    remaining -= len(buf)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
+        except Exception as e:
+            print(f"[Audio Stream Warning] {clean_filename}: {e}")
 
     def handle_get_latest_backup(self):
         try:
@@ -467,15 +564,21 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
 
     def handle_get_tts_history(self):
         try:
-            if not AUDIO_DIR.exists():
-                self.send_json_response({"success": True, "files": [], "audio_dir": str(AUDIO_DIR)})
-                return
+            dirs_to_scan = [AUDIO_DIR]
+            parent_audio = EXE_DIR.parent / "audio"
+            if parent_audio.exists() and parent_audio.resolve() != AUDIO_DIR.resolve():
+                dirs_to_scan.append(parent_audio)
 
-            mp3_files = sorted(
-                list(AUDIO_DIR.glob("*.mp3")),
-                key=lambda p: p.stat().st_mtime,
-                reverse=True
-            )
+            seen_names = set()
+            mp3_files = []
+            for d in dirs_to_scan:
+                if d.exists():
+                    for p in d.glob("*.mp3"):
+                        if p.name not in seen_names:
+                            seen_names.add(p.name)
+                            mp3_files.append(p)
+
+            mp3_files.sort(key=lambda p: p.stat().st_mtime, reverse=True)
 
             history = []
             for f in mp3_files:
