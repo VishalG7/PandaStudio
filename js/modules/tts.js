@@ -311,7 +311,7 @@ export const TtsModule = {
         const select = this.container.querySelector("#ttsVoiceSelect");
         try {
             const res = await fetch("/api/tts/voices");
-            const data = await res.json();
+            const data = await this.parseJsonResponse(res, "/api/tts/voices");
 
             if (res.ok && data.success && Array.isArray(data.voices)) {
                 this.state.voices = data.voices;
@@ -372,7 +372,7 @@ export const TtsModule = {
     async loadHistory(notify = false) {
         try {
             const res = await fetch("/api/tts/history");
-            const data = await res.json();
+            const data = await this.parseJsonResponse(res, "/api/tts/history");
 
             if (res.ok && data.success && Array.isArray(data.files)) {
                 this.state.history = data.files;
@@ -529,7 +529,7 @@ export const TtsModule = {
                 })
             });
 
-            const result = await res.json();
+            const result = await this.parseJsonResponse(res, "/api/tts/generate");
 
             if (res.ok && result.success) {
                 this.app.log(this.id, `Speech generated successfully: ${result.filename}`, { size: result.size });
@@ -578,7 +578,7 @@ export const TtsModule = {
                 body: JSON.stringify({ filename })
             });
 
-            const result = await res.json();
+            const result = await this.parseJsonResponse(res, "/api/tts/delete");
             if (res.ok && result.success) {
                 this.app.showToast(`Deleted ${filename}`, "success");
                 this.app.log(this.id, `Deleted audio file: ${filename}`);
@@ -611,7 +611,7 @@ export const TtsModule = {
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({ folder: "audio" })
             });
-            const data = await res.json();
+            const data = await this.parseJsonResponse(res, "/api/open-folder");
             if (res.ok && data.success) {
                 this.app.showToast("Opened audio/ folder in Windows Explorer", "success");
                 this.app.log(this.id, "Opened audio folder in file explorer");
@@ -621,6 +621,22 @@ export const TtsModule = {
         } catch (err) {
             this.app.showToast(`Could not open audio folder: ${err.message}`, "error");
         }
+    },
+
+    async parseJsonResponse(res, endpointName = "request") {
+        const contentType = res.headers.get("content-type") || "";
+        if (contentType.includes("application/json")) {
+            try {
+                return await res.json();
+            } catch (e) {
+                throw new Error(`Malformed JSON response from server: ${e.message}`);
+            }
+        }
+        const text = await res.text();
+        if (res.status === 404) {
+            throw new Error(`Endpoint ${endpointName} returned 404 (Not Found). Please restart python server.py or PandaStudio.exe so it runs the latest server code.`);
+        }
+        throw new Error(`Server returned status ${res.status}: ${text.slice(0, 150)}`);
     },
 
     escapeHtml(str) {

@@ -183,7 +183,7 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         elif clean_path == "/api/tts/delete":
             self.handle_tts_delete()
         else:
-            self.send_error(404, "Endpoint not found")
+            self.send_json_response({"success": False, "error": f"Endpoint not found: {clean_path}"}, 404)
 
     def handle_open_folder(self):
         target_dir = LOGS_DIR
@@ -383,6 +383,9 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
             return
         elif clean_path == "/api/tts/history":
             self.handle_get_tts_history()
+            return
+        if clean_path.startswith("/api/"):
+            self.send_json_response({"success": False, "error": f"Endpoint not found: {clean_path}"}, 404)
             return
         super().do_GET()
 
