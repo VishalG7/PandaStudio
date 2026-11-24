@@ -15,6 +15,7 @@ Do not change tab order, module IDs, or display names unless explicitly instruct
 2. **Tab 2 (`trimmer`):** `TrimmerModule` (`js/modules/trimmer.js`) — *"4-Panel Image Trimmer"*
 3. **Tab 3 (`backup-updater`):** `BackupUpdaterModule` (`js/modules/backup-updater.js`) — *"Backup JSON Updater"*
 4. **Tab 4 (`grid-splitter`):** `GridSplitterModule` (`js/modules/grid-splitter.js`) — *"Grid Slicer (N-Tiles)"*
+5. **Tab 5 (`tts`):** `TtsModule` (`js/modules/tts.js`) — *"Text to Speech"*
 
 ### 2. Tab 1 Group Deletion Semantics
 - **Rule:** When a user deletes a group, **ALL items assigned to that group MUST be deleted from IndexedDB** (`dbDelete("items", item.id)`).
@@ -113,6 +114,13 @@ If any file throws a syntax error, fix it immediately.
 - All form inputs, buttons, selects, options, and file pickers across the entire app MUST strictly inherit `var(--font-sans)` (`'Inter'`).
 - Native file inputs must not be left unstyled. Image folder and JSON loaders must use styled `.btn` triggers, `.file-picker-control`, and `.file-picker-badge` status pills.
 - Browser native `input[type="file"]::file-selector-button` MUST be styled to match `.btn.btn-sm` in both light and dark themes.
+
+### 17. Tab 5 Text to Speech Invariants
+- Generates high-fidelity neural audio via backend endpoint `POST /api/tts/generate` powered by Python `edge-tts`.
+- Output MP3 files are automatically stored in the local `audio/` directory alongside structured `.json` metadata files.
+- Generated audio must be playable immediately in the HTML5 player, downloadable as `.mp3`, and removable from local disk via `POST /api/tts/delete`.
+- Provides freely available neural voice models across multiple languages and accents (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian).
+- Text-to-speech actions, voice selections, and downloads must be logged via `this.app.log(...)`.
 
 ---
 

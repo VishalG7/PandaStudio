@@ -15,6 +15,7 @@
    - [Tab 2: ✂️ 4-Panel Image Trimmer (`trimmer`)](#tab-2-️-4-panel-image-trimmer-trimmer)
    - [Tab 3: 🔄 Backup JSON Updater & Sync (`backup-updater`)](#tab-3--backup-json-updater--sync-backup-updater)
    - [Tab 4: 🪟 Grid Slicer (N-Tiles) (`grid-splitter`)](#tab-4--grid-slicer-n-tiles-grid-splitter)
+   - [Tab 5: 🎙️ Text to Speech (`tts`)](#tab-5-️-text-to-speech-tts)
 3. [Core Services & Global Features](#3-core-services--global-features)
    - [Central App Kernel (`js/app.js`)](#central-app-kernel-jsappjs)
    - [Settings & About Modal](#settings--about-modal)
@@ -31,6 +32,7 @@
    - [Test Suite 5: Kernel, Themes, Logging & Settings](#test-suite-5-kernel-themes-logging--settings)
    - [Test Suite 6: Backend HTTP API](#test-suite-6-backend-http-api)
    - [Test Suite 7: Standalone Windows Executable](#test-suite-7-standalone-windows-executable)
+   - [Test Suite 8: Text to Speech Module (Tab 5)](#test-suite-8-text-to-speech-module-tab-5)
 
 ---
 
@@ -242,6 +244,47 @@ General-purpose image slicing tool that splits any image into an arbitrary $N$-t
 
 ---
 
+### Tab 5: 🎙️ Text to Speech (`tts`)
+
+- **Identifier:** `tts`
+- **File:** `js/modules/tts.js`
+- **CSS:** `css/tts.css`
+
+#### Purpose
+Generates high-fidelity natural neural speech from text or video prompts using freely available AI voice models. Provides instant in-browser audio playback, pitch and speed fine-tuning, and direct local saving to MP3 in the `audio/` directory.
+
+#### Core Features
+1. **Multi-Line Text Input & Counters:**
+   - Dedicated textarea with real-time character and word counters.
+   - "Sample Prompt" button providing randomized cinematic scene prompts and narration scripts.
+   - Quick "Clear" action.
+2. **Freely Available Voice Catalog:**
+   - Populated with over 40+ curated neural voice models without needing any external API key.
+   - Categorized by accent and language:
+     - 🌟 **Featured Voices:** Jenny, Guy, Aria, Sonia, Ryan, Neerja, Prabhat.
+     - 🇺🇸 **US English:** Christopher, Eric, Michelle, Roger, Brian, Emma, Davis, Amber, Ana, Andrew, Steffan.
+     - 🇬🇧 **UK English:** Sonia, Ryan, Libby, Thomas, Bella, Alfie, Elliot, Maisie, Oliver.
+     - 🇮🇳 **Indian English & Hindi:** Neerja, Prabhat, Swara, Madhur.
+     - 🇦🇺 **Australia & Canada:** Natasha, William, Clara, Liam.
+     - 🌍 **European & Global:** Spanish (Elvira, Alvaro, Dalia), French (Denise, Henri), German (Katja, Conrad), Italian (Elsa, Diego), Portuguese (Francisca).
+     - 🌏 **Asian Languages:** Japanese (Nanami, Keita), Korean (Sun-Hi), Chinese Mandarin (Xiaoxiao, Yunxi).
+3. **Voice Fine-Tuning Controls:**
+   - **Speaking Speed:** Continuous slider (`-50%` to `+100%`) with quick multiplier presets (`0.75x`, `1.0x Normal`, `1.25x`, `1.5x`).
+   - **Voice Pitch:** Slider (`-20Hz` to `+20Hz`) with presets (`Low`, `Default`, `High`).
+4. **Local Audio Persistence:**
+   - Synthesized audio is automatically written to disk inside the local `audio/` directory as `.mp3`.
+   - Alongside each audio file, a structured `.json` metadata file records voice model, full text snippet, rate, pitch, file size, and creation timestamp.
+5. **Interactive Audio Player:**
+   - Dedicated player card with HTML5 audio player, time progress, and auto-play upon synthesis.
+   - Action controls: `⬇️ Download MP3`, `📋 Copy Link`, `▶️ Play Again`.
+6. **Local Generation History:**
+   - Chronological list of previously generated audio files.
+   - Quick play/pause buttons, voice badges, text previews, timestamps, and file sizes.
+   - One-click deletion (`POST /api/tts/delete`) removing `.mp3` and `.json` metadata from disk.
+   - Direct folder reveal (`POST /api/open-audio`) opening the `audio/` directory in Windows Explorer.
+
+---
+
 ## 3. Core Services & Global Features
 
 ### Central App Kernel (`js/app.js`)
@@ -290,6 +333,12 @@ General-purpose image slicing tool that splits any image into an arbitrary $N$-t
 | `POST` | `/save-backup` | Saves backup JSON into `backups/library-backup-YYYYMMDD_HHMMSS.json` |
 | `POST` | `/api/update-backup` | Updates existing backup in-place or creates new timestamped file |
 | `POST` | `/api/log` | Appends formatted action log line to `backups/logs/app-YYYY-MM-DD.log` |
+| `GET` | `/api/tts/voices` | Returns catalog of freely available neural voice models |
+| `GET` | `/api/tts/history` | Returns list of generated MP3 audio files and metadata |
+| `GET` | `/audio/<filename>` | Serves generated audio MP3 files directly to browser audio player |
+| `POST` | `/api/tts/generate` | Generates speech via Python `edge-tts` and saves MP3 in `audio/` |
+| `POST` | `/api/tts/delete` | Deletes generated MP3 and metadata from `audio/` directory |
+| `POST` | `/api/open-audio` | Opens the local `audio/` directory in Windows Explorer |
 
 ---
 
@@ -611,4 +660,24 @@ python -m PyInstaller --clean PandaStudio.spec
   2. A `backups\` folder and `backups\logs\` folder are automatically created in the folder next to `PandaStudio.exe`.
   3. Action logs are recorded in `backups\logs\app-YYYY-MM-DD.log`.
   4. Closing the console window stops the server cleanly.
+
+---
+
+### Test Suite 8: Text to Speech Module (Tab 5)
+
+#### TC-8.1: Voice Catalog Retrieval
+- **Command:** `curl -s http://127.0.0.1:6700/api/tts/voices`
+- **Expected:** HTTP 200 with `success: true`, returning 40+ freely available neural voices with `id`, `name`, `gender`, `locale`, and `category`.
+
+#### TC-8.2: Speech Generation & Local MP3 Creation
+- **Command:** `curl -X POST http://127.0.0.1:6700/api/tts/generate -H "Content-Type: application/json" -d "{\"text\":\"Hello Panda Studio\",\"voice\":\"en-US-JennyNeural\"}"`
+- **Expected:** HTTP 200 with `success: true`, non-zero `size`, valid `filename` (e.g. `tts_..._jenny.mp3`), and `url` (`/audio/...mp3`). File exists in `audio/` directory.
+
+#### TC-8.3: In-Browser Audio Playback & Streaming
+- **Steps:** In Tab 5, enter prompt text, select a voice (e.g. `en-GB-SoniaNeural`), and click `⚡ Generate Speech & Play`.
+- **Expected:** Button shows synthesizing spinner; upon completion, active player loads the audio, autoplays, displays file size and voice badge, and adds entry to the local history list.
+
+#### TC-8.4: History and File Deletion
+- **Steps:** Click the `🗑️` delete icon on an entry in the history list. Confirm prompt.
+- **Expected:** Server deletes the `.mp3` and `.json` metadata from `audio/`. History updates instantly.
 

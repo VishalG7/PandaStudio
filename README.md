@@ -25,6 +25,7 @@ A high-performance, offline-first, zero-cloud desktop web platform designed for 
   - [Tab 2: ✂️ 4-Panel Image Trimmer (`trimmer`)](#tab-2-️-4-panel-image-trimmer-trimmer)
   - [Tab 3: 🔄 Backup JSON Updater & Sync (`backup-updater`)](#tab-3--backup-json-updater--sync-backup-updater)
   - [Tab 4: 🪟 Grid Slicer (N-Tiles) (`grid-splitter`)](#tab-4--grid-slicer-n-tiles-grid-splitter)
+  - [Tab 5: 🎙️ Text to Speech (`tts`)](#tab-5-️-text-to-speech-tts)
 - [🌟 Global Platform Features](#-global-platform-features)
   - [Settings & Profile Modal](#settings--profile-modal)
   - [Light ☀️ / Dark 🌙 Theme Engine](#light-️--dark--theme-engine)
@@ -183,6 +184,16 @@ Arbitrary $N$-tile grid slicing tool:
 - **Dynamic Dimension Calculation:** Computes column and row counts from user tile count ($1\times1$, $2\times2$, $3\times3$, $4\times4$).
 - **Per-Tile Custom Naming Arguments:** Configurable output file names per tile (e.g. `crop_1.png` or custom scene labels).
 - **Batch Export:** Download slices individually or as a single compiled ZIP archive via `JSZip`.
+
+---
+
+### Tab 5: 🎙️ Text to Speech (`tts`)
+Convert text and video prompts into natural neural speech:
+- **Freely Available AI Voice Models:** Over 40+ curated neural voices (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian) without requiring any API keys.
+- **Python Backend Engine:** Synthesizes audio using Python `edge-tts` and saves directly to disk in the local `audio/` directory as MP3.
+- **In-Browser Playback:** Interactive audio player with auto-play, replay, seek, and volume control.
+- **Voice Fine-Tuning:** Adjustable speaking speed (0.75x to 1.5x) and voice pitch presets.
+- **Local Audio History:** Browse, replay, download, and delete saved MP3s, or open the `audio/` directory directly in Windows Explorer.
 
 ---
 

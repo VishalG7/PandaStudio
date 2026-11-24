@@ -21,6 +21,10 @@ backups/logs/*
 !backups/logs/.gitkeep
 *.log
 
+# Audio generated files (never commit personal generated audio)
+audio/*
+!audio/.gitkeep
+
 # Operating System & IDE files
 Thumbs.db
 ehthumbs.db

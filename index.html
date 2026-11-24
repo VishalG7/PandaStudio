@@ -17,10 +17,11 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="css/app.css?v=12">
-    <link rel="stylesheet" href="css/trimmer.css?v=12">
-    <link rel="stylesheet" href="css/library.css?v=12">
-    <link rel="stylesheet" href="css/backup-updater.css?v=12">
+    <link rel="stylesheet" href="css/app.css?v=13">
+    <link rel="stylesheet" href="css/trimmer.css?v=13">
+    <link rel="stylesheet" href="css/library.css?v=13">
+    <link rel="stylesheet" href="css/backup-updater.css?v=13">
+    <link rel="stylesheet" href="css/tts.css?v=13">
 
     <!-- JSZip for Client-side ZIP packaging -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -203,11 +204,12 @@
 
     <!-- Application Initialization & Module Registration -->
     <script type="module">
-        import { App } from "./js/app.js?v=12";
-        import { TrimmerModule } from "./js/modules/trimmer.js?v=12";
-        import { LibraryModule } from "./js/modules/library.js?v=12";
-        import { GridSplitterModule } from "./js/modules/grid-splitter.js?v=12";
-        import { BackupUpdaterModule } from "./js/modules/backup-updater.js?v=12";
+        import { App } from "./js/app.js?v=13";
+        import { TrimmerModule } from "./js/modules/trimmer.js?v=13";
+        import { LibraryModule } from "./js/modules/library.js?v=13";
+        import { GridSplitterModule } from "./js/modules/grid-splitter.js?v=13";
+        import { BackupUpdaterModule } from "./js/modules/backup-updater.js?v=13";
+        import { TtsModule } from "./js/modules/tts.js?v=13";
 
         // Wrap in async IIFE so we can use await without top-level await
         (async () => {
@@ -216,6 +218,7 @@
                 App.registerModule(TrimmerModule);
                 App.registerModule(BackupUpdaterModule);
                 App.registerModule(GridSplitterModule);
+                App.registerModule(TtsModule);
                 App.initApp();
             } catch (err) {
                 var o = document.getElementById('errOverlay');

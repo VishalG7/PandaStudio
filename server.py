@@ -34,11 +34,102 @@ else:
 BASE_DIR = EXE_DIR
 BACKUP_DIR = EXE_DIR / "backups"
 LOGS_DIR = BACKUP_DIR / "logs"
+AUDIO_DIR = EXE_DIR / "audio"
 CONFIG_FILE = EXE_DIR / "config.json"
+
+# Ensure runtime directories exist
+AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 
 # Active host and port (configurable via CLI, ENV, or config.json)
 CURRENT_HOST = DEFAULT_HOST
 CURRENT_PORT = DEFAULT_PORT
+
+def normalize_rate(val):
+    if not val:
+        return "+0%"
+    val = str(val).strip()
+    if val.endswith("%"):
+        if not val.startswith(("+", "-")):
+            val = f"+{val}"
+        return val
+    try:
+        f = float(val.replace("x", ""))
+        pct = int(round((f - 1.0) * 100))
+        return f"+{pct}%" if pct >= 0 else f"{pct}%"
+    except Exception:
+        return "+0%"
+
+def normalize_pitch(val):
+    if not val:
+        return "+0Hz"
+    val = str(val).strip()
+    if val.endswith("Hz"):
+        if not val.startswith(("+", "-")):
+            val = f"+{val}"
+        return val
+    return "+0Hz"
+
+VOICE_CATALOG = [
+    # Featured Voices
+    {"id": "en-US-JennyNeural", "name": "Jenny (US English, Warm & Conversational)", "gender": "Female", "locale": "en-US", "category": "Featured"},
+    {"id": "en-US-GuyNeural", "name": "Guy (US English, Casual & Natural)", "gender": "Male", "locale": "en-US", "category": "Featured"},
+    {"id": "en-US-AriaNeural", "name": "Aria (US English, Expressive & Broadcast)", "gender": "Female", "locale": "en-US", "category": "Featured"},
+    {"id": "en-GB-SoniaNeural", "name": "Sonia (British English, Clear & Elegant)", "gender": "Female", "locale": "en-GB", "category": "Featured"},
+    {"id": "en-GB-RyanNeural", "name": "Ryan (British English, Natural & Crisp)", "gender": "Male", "locale": "en-GB", "category": "Featured"},
+    {"id": "en-IN-NeerjaNeural", "name": "Neerja (Indian English, Natural & Professional)", "gender": "Female", "locale": "en-IN", "category": "Featured"},
+    {"id": "en-IN-PrabhatNeural", "name": "Prabhat (Indian English, Confident & Warm)", "gender": "Male", "locale": "en-IN", "category": "Featured"},
+
+    # US English
+    {"id": "en-US-ChristopherNeural", "name": "Christopher (US English, Authoritative Narration)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-EricNeural", "name": "Eric (US English, Documentary Style)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-MichelleNeural", "name": "Michelle (US English, Storyteller & Friendly)", "gender": "Female", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-RogerNeural", "name": "Roger (US English, Deep Storyteller)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-BrianNeural", "name": "Brian (US English, Professional Voiceover)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-EmmaNeural", "name": "Emma (US English, Bright & Cheerful)", "gender": "Female", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-DavisNeural", "name": "Davis (US English, Calm & Relaxed)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-AmberNeural", "name": "Amber (US English, Dynamic & Energetic)", "gender": "Female", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-AnaNeural", "name": "Ana (US English, Young & Animated)", "gender": "Female", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-AndrewNeural", "name": "Andrew (US English, Confident & Smooth)", "gender": "Male", "locale": "en-US", "category": "US English"},
+    {"id": "en-US-SteffanNeural", "name": "Steffan (US English, Casual & Youthful)", "gender": "Male", "locale": "en-US", "category": "US English"},
+
+    # UK English
+    {"id": "en-GB-LibbyNeural", "name": "Libby (British English, Gentle & Storyteller)", "gender": "Female", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-ThomasNeural", "name": "Thomas (British English, Formal & Prestigious)", "gender": "Male", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-BellaNeural", "name": "Bella (British English, Warm & Bright)", "gender": "Female", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-AlfieNeural", "name": "Alfie (British English, Youthful)", "gender": "Male", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-ElliotNeural", "name": "Elliot (British English, Narrative)", "gender": "Male", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-MaisieNeural", "name": "Maisie (British English, Child/Young)", "gender": "Female", "locale": "en-GB", "category": "UK English"},
+    {"id": "en-GB-OliverNeural", "name": "Oliver (British English, Conversational)", "gender": "Male", "locale": "en-GB", "category": "UK English"},
+
+    # Indian English & Hindi
+    {"id": "hi-IN-SwaraNeural", "name": "Swara (Hindi, Clear & Melodic)", "gender": "Female", "locale": "hi-IN", "category": "Hindi & Indian"},
+    {"id": "hi-IN-MadhurNeural", "name": "Madhur (Hindi, Deep & Expressive)", "gender": "Male", "locale": "hi-IN", "category": "Hindi & Indian"},
+
+    # Australia & Canada
+    {"id": "en-AU-NatashaNeural", "name": "Natasha (Australian English, Warm)", "gender": "Female", "locale": "en-AU", "category": "Australia & Canada"},
+    {"id": "en-AU-WilliamNeural", "name": "William (Australian English, Clear)", "gender": "Male", "locale": "en-AU", "category": "Australia & Canada"},
+    {"id": "en-CA-ClaraNeural", "name": "Clara (Canadian English, Clear)", "gender": "Female", "locale": "en-CA", "category": "Australia & Canada"},
+    {"id": "en-CA-LiamNeural", "name": "Liam (Canadian English, Natural)", "gender": "Male", "locale": "en-CA", "category": "Australia & Canada"},
+
+    # European & Global
+    {"id": "es-ES-ElviraNeural", "name": "Elvira (Spanish - Spain, Natural)", "gender": "Female", "locale": "es-ES", "category": "European & Global"},
+    {"id": "es-ES-AlvaroNeural", "name": "Alvaro (Spanish - Spain, Rich)", "gender": "Male", "locale": "es-ES", "category": "European & Global"},
+    {"id": "es-MX-DaliaNeural", "name": "Dalia (Spanish - Mexico, Warm)", "gender": "Female", "locale": "es-MX", "category": "European & Global"},
+    {"id": "fr-FR-DeniseNeural", "name": "Denise (French - France, Eloquent)", "gender": "Female", "locale": "fr-FR", "category": "European & Global"},
+    {"id": "fr-FR-HenriNeural", "name": "Henri (French - France, Deep)", "gender": "Male", "locale": "fr-FR", "category": "European & Global"},
+    {"id": "de-DE-KatjaNeural", "name": "Katja (German - Germany, Crisp)", "gender": "Female", "locale": "de-DE", "category": "European & Global"},
+    {"id": "de-DE-ConradNeural", "name": "Conrad (German - Germany, Authoritative)", "gender": "Male", "locale": "de-DE", "category": "European & Global"},
+    {"id": "it-IT-ElsaNeural", "name": "Elsa (Italian - Italy, Melodic)", "gender": "Female", "locale": "it-IT", "category": "European & Global"},
+    {"id": "it-IT-DiegoNeural", "name": "Diego (Italian - Italy, Expressive)", "gender": "Male", "locale": "it-IT", "category": "European & Global"},
+    {"id": "pt-BR-FranciscaNeural", "name": "Francisca (Portuguese - Brazil, Warm)", "gender": "Female", "locale": "pt-BR", "category": "European & Global"},
+
+    # Asian Languages
+    {"id": "ja-JP-NanamiNeural", "name": "Nanami (Japanese, Gentle & Clear)", "gender": "Female", "locale": "ja-JP", "category": "Asian Languages"},
+    {"id": "ja-JP-KeitaNeural", "name": "Keita (Japanese, Calm & Natural)", "gender": "Male", "locale": "ja-JP", "category": "Asian Languages"},
+    {"id": "ko-KR-SunHiNeural", "name": "Sun-Hi (Korean, Clear)", "gender": "Female", "locale": "ko-KR", "category": "Asian Languages"},
+    {"id": "zh-CN-XiaoxiaoNeural", "name": "Xiaoxiao (Chinese Mandarin, Expressive)", "gender": "Female", "locale": "zh-CN", "category": "Asian Languages"},
+    {"id": "zh-CN-YunxiNeural", "name": "Yunxi (Chinese Mandarin, Dynamic)", "gender": "Male", "locale": "zh-CN", "category": "Asian Languages"}
+]
 
 
 class LocalLibraryHandler(SimpleHTTPRequestHandler):
@@ -53,6 +144,13 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         if clean.startswith("/backups/"):
             rel = clean[len("/backups/"):].lstrip("/")
             return str(BACKUP_DIR / rel)
+        # Route /audio/ or /api/audio/ requests directly to user's AUDIO_DIR on disk
+        if clean.startswith("/audio/"):
+            rel = clean[len("/audio/"):].lstrip("/")
+            return str(AUDIO_DIR / rel)
+        if clean.startswith("/api/audio/"):
+            rel = clean[len("/api/audio/"):].lstrip("/")
+            return str(AUDIO_DIR / rel)
         # Check if file exists in EXE_DIR (allows user customization outside the bundle)
         exe_target = EXE_DIR / clean.lstrip("/")
         if exe_target.exists() and not exe_target.is_dir():
@@ -78,8 +176,12 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
             self.handle_update_backup()
         elif clean_path == "/api/log":
             self.handle_log()
-        elif clean_path in ("/api/open-folder", "/api/open-logs"):
+        elif clean_path in ("/api/open-folder", "/api/open-logs", "/api/open-audio"):
             self.handle_open_folder()
+        elif clean_path == "/api/tts/generate":
+            self.handle_tts_generate()
+        elif clean_path == "/api/tts/delete":
+            self.handle_tts_delete()
         else:
             self.send_error(404, "Endpoint not found")
 
@@ -87,16 +189,22 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         target_dir = LOGS_DIR
         try:
             content_length = int(self.headers.get("Content-Length", 0))
-            folder_target = "logs"
+            clean_path = self.path.split("?")[0].rstrip("/")
+            folder_target = "audio" if clean_path == "/api/open-audio" else "logs"
             if content_length > 0:
                 body = self.rfile.read(content_length)
                 try:
                     payload = json.loads(body.decode("utf-8"))
-                    folder_target = payload.get("folder", "logs")
+                    folder_target = payload.get("folder", folder_target)
                 except Exception:
                     pass
 
-            target_dir = LOGS_DIR if folder_target == "logs" else BACKUP_DIR
+            if folder_target == "audio":
+                target_dir = AUDIO_DIR
+            elif folder_target == "backups":
+                target_dir = BACKUP_DIR
+            else:
+                target_dir = LOGS_DIR
             target_dir.mkdir(parents=True, exist_ok=True)
 
             opened = False
@@ -257,7 +365,8 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
                 "port": CURRENT_PORT,
                 "url": f"http://localhost:{CURRENT_PORT}",
                 "backup_dir": str(BACKUP_DIR),
-                "logs_dir": str(LOGS_DIR)
+                "logs_dir": str(LOGS_DIR),
+                "audio_dir": str(AUDIO_DIR)
             })
             return
         elif clean_path == "/api/latest-backup":
@@ -266,8 +375,14 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         elif clean_path == "/api/logs":
             self.handle_get_logs()
             return
-        elif clean_path in ("/api/open-folder", "/api/open-logs"):
+        elif clean_path in ("/api/open-folder", "/api/open-logs", "/api/open-audio"):
             self.handle_open_folder()
+            return
+        elif clean_path == "/api/tts/voices":
+            self.handle_get_tts_voices()
+            return
+        elif clean_path == "/api/tts/history":
+            self.handle_get_tts_history()
             return
         super().do_GET()
 
@@ -335,6 +450,207 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         self.send_header("Content-Length", str(len(body)))
         self.end_headers()
         self.wfile.write(body)
+
+    def handle_get_tts_voices(self):
+        try:
+            self.send_json_response({
+                "success": True,
+                "voices": VOICE_CATALOG,
+                "total": len(VOICE_CATALOG),
+                "defaultVoice": "en-US-JennyNeural"
+            })
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_get_tts_history(self):
+        try:
+            if not AUDIO_DIR.exists():
+                self.send_json_response({"success": True, "files": [], "audio_dir": str(AUDIO_DIR)})
+                return
+
+            mp3_files = sorted(
+                list(AUDIO_DIR.glob("*.mp3")),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True
+            )
+
+            history = []
+            for f in mp3_files:
+                meta_file = f.with_suffix(".json")
+                item = {
+                    "filename": f.name,
+                    "url": f"/audio/{f.name}",
+                    "size": f.stat().st_size,
+                    "mtime": f.stat().st_mtime,
+                    "createdAt": int(f.stat().st_mtime * 1000),
+                    "voice": "en-US-JennyNeural",
+                    "text": ""
+                }
+                if meta_file.exists():
+                    try:
+                        with open(meta_file, "r", encoding="utf-8") as mf:
+                            loaded_meta = json.load(mf)
+                            item.update(loaded_meta)
+                    except Exception:
+                        pass
+                history.append(item)
+
+            self.send_json_response({
+                "success": True,
+                "files": history,
+                "audio_dir": str(AUDIO_DIR)
+            })
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_tts_delete(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self.send_json_response({"success": False, "error": "Empty body"}, 400)
+                return
+
+            body = self.rfile.read(content_length)
+            payload = json.loads(body.decode("utf-8"))
+            filename = payload.get("filename", "").strip()
+
+            if not filename:
+                self.send_json_response({"success": False, "error": "Filename required"}, 400)
+                return
+
+            clean_name = Path(filename).name
+            target = AUDIO_DIR / clean_name
+            meta_target = target.with_suffix(".json")
+
+            deleted = False
+            if target.exists():
+                target.unlink()
+                deleted = True
+            if meta_target.exists():
+                meta_target.unlink()
+
+            print(f"[TTS Delete] Deleted: {clean_name}")
+            self.send_json_response({"success": True, "deleted": deleted, "filename": clean_name})
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_tts_generate(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self.send_json_response({"success": False, "error": "Empty request body"}, 400)
+                return
+
+            body = self.rfile.read(content_length)
+            payload = json.loads(body.decode("utf-8"))
+
+            text = payload.get("text", "").strip()
+            if not text:
+                self.send_json_response({"success": False, "error": "Text is required to generate speech"}, 400)
+                return
+
+            voice = payload.get("voice", "en-US-JennyNeural").strip() or "en-US-JennyNeural"
+            rate = normalize_rate(payload.get("rate", "+0%"))
+            pitch = normalize_pitch(payload.get("pitch", "+0Hz"))
+            volume = payload.get("volume", "+0%").strip() or "+0%"
+
+            AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+            timestamp_str = datetime.now().strftime("%Y%m%d_%H%M%S")
+            voice_short = voice.split("-")[-1].replace("Neural", "").lower()
+
+            custom_name = payload.get("filename", "").strip()
+            if custom_name:
+                base_clean = "".join(c for c in custom_name if c.isalnum() or c in ("-", "_", " ")).strip().replace(" ", "_")
+                if not base_clean:
+                    base_clean = f"tts_{timestamp_str}_{voice_short}"
+                filename = f"{base_clean}.mp3" if not base_clean.lower().endswith(".mp3") else base_clean
+            else:
+                filename = f"tts_{timestamp_str}_{voice_short}.mp3"
+
+            output_file = AUDIO_DIR / filename
+            counter = 1
+            stem = output_file.stem
+            while output_file.exists():
+                output_file = AUDIO_DIR / f"{stem}_{counter}.mp3"
+                counter += 1
+            filename = output_file.name
+
+            # Generate speech using edge-tts
+            try:
+                import edge_tts
+                import asyncio
+
+                async def _speak():
+                    communicate = edge_tts.Communicate(
+                        text=text,
+                        voice=voice,
+                        rate=rate,
+                        pitch=pitch,
+                        volume=volume
+                    )
+                    await communicate.save(str(output_file))
+
+                asyncio.run(_speak())
+
+            except ImportError:
+                self.send_json_response({
+                    "success": False,
+                    "error": "The 'edge-tts' package is missing. Please run 'pip install edge-tts'."
+                }, 500)
+                return
+            except Exception as tts_err:
+                print(f"[TTS Error] Generation failed: {tts_err}")
+                self.send_json_response({
+                    "success": False,
+                    "error": f"TTS synthesis failed: {str(tts_err)}. Please verify your internet connection."
+                }, 500)
+                return
+
+            if not output_file.exists() or output_file.stat().st_size == 0:
+                self.send_json_response({
+                    "success": False,
+                    "error": "Audio file was not generated or is empty."
+                }, 500)
+                return
+
+            file_size = output_file.stat().st_size
+            now_ms = int(datetime.now().timestamp() * 1000)
+
+            # Save metadata .json alongside the .mp3
+            meta = {
+                "filename": filename,
+                "voice": voice,
+                "text": text,
+                "rate": rate,
+                "pitch": pitch,
+                "volume": volume,
+                "size": file_size,
+                "createdAt": now_ms
+            }
+            meta_path = output_file.with_suffix(".json")
+            try:
+                with open(meta_path, "w", encoding="utf-8") as mf:
+                    json.dump(meta, mf, ensure_ascii=False, indent=2)
+            except Exception as e:
+                print(f"[TTS Warning] Could not save metadata: {e}")
+
+            print(f"[TTS] Generated audio: {filename} ({file_size} bytes, voice: {voice})")
+
+            self.send_json_response({
+                "success": True,
+                "filename": filename,
+                "url": f"/audio/{filename}",
+                "size": file_size,
+                "voice": voice,
+                "rate": rate,
+                "pitch": pitch,
+                "text": text,
+                "createdAt": now_ms
+            })
+
+        except Exception as e:
+            print(f"[TTS Error] Request failed: {e}")
+            self.send_json_response({"success": False, "error": str(e)}, 500)
 
 
 def load_configuration(cli_args=None):
