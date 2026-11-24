@@ -686,17 +686,65 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
                 import edge_tts
                 import asyncio
 
-                async def _speak():
+                # Detect if text contains non-Latin scripts and auto-select a matching voice
+                def _detect_script_mismatch(txt, vc):
+                    """Check if text script doesn't match the voice locale."""
+                    import unicodedata
+                    non_latin = 0
+                    latin = 0
+                    devanagari = 0
+                    for ch in txt:
+                        if ch.isalpha():
+                            try:
+                                name = unicodedata.name(ch, "")
+                            except ValueError:
+                                name = ""
+                            if "DEVANAGARI" in name:
+                                devanagari += 1
+                                non_latin += 1
+                            elif "LATIN" in name:
+                                latin += 1
+                            else:
+                                non_latin += 1
+
+                    total = latin + non_latin
+                    if total == 0:
+                        return None, None
+
+                    # If majority is Devanagari (Hindi) but voice is not hi-IN, suggest Hindi voice
+                    if devanagari > latin and not vc.startswith("hi-IN"):
+                        return "hi-IN-SwaraNeural", "Hindi text detected but an English voice was selected. Auto-switching to Hindi voice."
+
+                    return None, None
+
+                fallback_voice, mismatch_msg = _detect_script_mismatch(text, voice)
+                actual_voice = voice
+
+                async def _speak(v):
                     communicate = edge_tts.Communicate(
                         text=text,
-                        voice=voice,
+                        voice=v,
                         rate=rate,
                         pitch=pitch,
                         volume=volume
                     )
                     await communicate.save(str(output_file))
 
-                asyncio.run(_speak())
+                try:
+                    asyncio.run(_speak(voice))
+                except Exception as first_err:
+                    # If the selected voice failed and we have a fallback, try it
+                    if fallback_voice and fallback_voice != voice:
+                        print(f"[TTS] Primary voice '{voice}' failed ({first_err}). Retrying with '{fallback_voice}'...")
+                        actual_voice = fallback_voice
+                        asyncio.run(_speak(fallback_voice))
+                    else:
+                        raise first_err
+
+                # Update voice to what was actually used (for metadata)
+                if actual_voice != voice:
+                    print(f"[TTS] Used fallback voice: {actual_voice} (original: {voice})")
+                    voice = actual_voice
 
             except ImportError:
                 self.send_json_response({
@@ -705,10 +753,20 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
                 }, 500)
                 return
             except Exception as tts_err:
-                print(f"[TTS Error] Generation failed: {tts_err}")
+                err_msg = str(tts_err)
+                print(f"[TTS Error] Generation failed: {err_msg}")
+
+                # Give a helpful hint if it's the "No audio" error
+                if "No audio was received" in err_msg:
+                    hint = ("The selected voice may not support this text's language/script. "
+                            "For Hindi text, use a Hindi voice (e.g. Swara or Madhur). "
+                            "For English text, use an English voice.")
+                else:
+                    hint = "Please verify your internet connection."
+
                 self.send_json_response({
                     "success": False,
-                    "error": f"TTS synthesis failed: {str(tts_err)}. Please verify your internet connection."
+                    "error": f"TTS synthesis failed: {err_msg}. {hint}"
                 }, 500)
                 return
 
