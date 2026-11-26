@@ -21,6 +21,7 @@ if hasattr(sys.stderr, "reconfigure"):
 
 DEFAULT_HOST = "127.0.0.1"
 DEFAULT_PORT = 6700
+DEFAULT_MAX_BACKUPS = 5
 
 # When packaged by PyInstaller into a standalone executable, assets are in sys._MEIPASS
 # while user data (backups, logs, config) lives in the directory containing the executable.
@@ -46,6 +47,28 @@ AUDIO_DIR.mkdir(parents=True, exist_ok=True)
 # Active host and port (configurable via CLI, ENV, or config.json)
 CURRENT_HOST = DEFAULT_HOST
 CURRENT_PORT = DEFAULT_PORT
+MAX_BACKUP_FILES = DEFAULT_MAX_BACKUPS
+
+
+def cleanup_old_backups(max_files=None):
+    """Keep only the newest `max_files` library-backup-*.json files in BACKUP_DIR."""
+    limit = max_files if max_files is not None else MAX_BACKUP_FILES
+    if not BACKUP_DIR.exists() or limit < 1:
+        return []
+    backup_files = sorted(
+        list(BACKUP_DIR.glob("library-backup-*.json")),
+        key=lambda p: p.stat().st_mtime,
+        reverse=True
+    )
+    removed = []
+    for old_file in backup_files[limit:]:
+        try:
+            old_file.unlink()
+            removed.append(old_file.name)
+            print(f"[Backup Cleanup] Deleted old backup (limit {limit}): {old_file.name}")
+        except Exception as e:
+            print(f"[Backup Cleanup Warning] Could not delete {old_file.name}: {e}")
+    return removed
 
 def normalize_rate(val):
     if not val:
@@ -314,12 +337,14 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
             with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
+            cleaned_up = cleanup_old_backups()
             print(f"[Backup Update] Saved to: {backup_path}")
             self.send_json_response({
                 "success": True,
                 "filename": filename,
                 "path": str(backup_path),
-                "overwritten": overwrite
+                "overwritten": overwrite,
+                "cleanedUp": cleaned_up
             })
         except Exception as e:
             print(f"[Backup Update Error] {e}")
@@ -337,21 +362,26 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
 
             BACKUP_DIR.mkdir(parents=True, exist_ok=True)
 
+            query_str = self.path.split("?")[1] if "?" in self.path else ""
+            is_auto = "auto=1" in query_str
             timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-            filename = f"library-backup-{timestamp}.json"
+            filename = "library-backup-auto.json" if is_auto else f"library-backup-{timestamp}.json"
             backup_path = BACKUP_DIR / filename
 
             with open(backup_path, "w", encoding="utf-8") as f:
                 json.dump(data, f, ensure_ascii=False, indent=2)
 
-            # Also keep a copy or link if needed
-            print(f"[Backup] Successfully saved: {backup_path} ({len(body)} bytes)")
+            cleaned_up = cleanup_old_backups()
+            tag = "Auto-Backup" if is_auto else "Backup"
+            print(f"[{tag}] Successfully saved: {backup_path} ({len(body)} bytes)")
 
             self.send_json_response({
                 "success": True,
                 "filename": filename,
                 "path": str(backup_path),
-                "timestamp": timestamp
+                "timestamp": timestamp,
+                "auto": is_auto,
+                "cleanedUp": cleaned_up
             })
 
         except Exception as e:
@@ -825,7 +855,7 @@ def load_configuration(cli_args=None):
     3. config.json in root directory
     4. Default: host 127.0.0.1, port 6700
     """
-    global CURRENT_HOST, CURRENT_PORT
+    global CURRENT_HOST, CURRENT_PORT, MAX_BACKUP_FILES
 
     host = DEFAULT_HOST
     port = DEFAULT_PORT
@@ -846,6 +876,8 @@ def load_configuration(cli_args=None):
                     host = cfg["host"]
                 if "auto_open_browser" in cfg:
                     auto_open = bool(cfg["auto_open_browser"])
+                if "max_backup_files" in cfg and isinstance(cfg["max_backup_files"], (int, str)):
+                    MAX_BACKUP_FILES = max(1, int(cfg["max_backup_files"]))
         except Exception as e:
             print(f"[Config Warning] Could not parse config.json: {e}")
 

@@ -140,7 +140,55 @@
     display: flex;
     align-items: center;
     position: relative;
-    group: hover;
+    border-radius: var(--radius-sm);
+    transition: opacity 0.15s ease;
+}
+
+.sidebar-group-row.dragging {
+    opacity: 0.45;
+}
+
+.sidebar-group-row.drag-over-top {
+    box-shadow: inset 0 2px 0 0 var(--primary);
+}
+
+.sidebar-group-row.drag-over-bottom {
+    box-shadow: inset 0 -2px 0 0 var(--primary);
+}
+
+.sidebar-group-label-wrap {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+    min-width: 0;
+    flex: 1;
+    overflow: hidden;
+}
+
+.group-drag-handle {
+    color: var(--text-muted);
+    font-size: 11px;
+    letter-spacing: -1px;
+    cursor: grab;
+    opacity: 0.45;
+    flex-shrink: 0;
+    user-select: none;
+    transition: opacity 0.15s ease, color 0.15s ease;
+}
+
+.sidebar-group-row:hover .group-drag-handle {
+    opacity: 1;
+    color: var(--text-secondary);
+}
+
+.sidebar-group-row.dragging .group-drag-handle {
+    cursor: grabbing;
+}
+
+.sidebar-group-name {
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
 }
 
 .sidebar-group-row:hover .group-row-actions {
@@ -486,6 +534,68 @@
 .card-fav-star {
     color: #f59e0b;
     font-size: 14px;
+}
+
+/* ---------------- CARD QUICK COPY ACTIONS ---------------- */
+
+.card-quick-actions {
+    display: flex;
+    gap: 6px;
+    margin-top: 8px;
+}
+
+.card-copy-btn {
+    flex: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 4px;
+    padding: 4px 8px;
+    font-size: 11.5px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--bg-subtle);
+    color: var(--text-secondary);
+    cursor: pointer;
+    transition: all 0.15s ease;
+    white-space: nowrap;
+}
+
+.card-copy-btn:hover:not(:disabled) {
+    background: var(--primary-light);
+    color: var(--primary);
+    border-color: rgba(79, 70, 229, 0.35);
+}
+
+.card-copy-btn.copied {
+    background: #dcfce7;
+    color: #15803d;
+    border-color: #86efac;
+}
+
+.card-copy-btn:disabled {
+    opacity: 0.45;
+    cursor: not-allowed;
+}
+
+[data-theme="dark"] .card-copy-btn {
+    background: #1e293b;
+    border-color: #334155;
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .card-copy-btn:hover:not(:disabled) {
+    background: rgba(99, 102, 241, 0.2);
+    color: #a5b4fc;
+    border-color: rgba(99, 102, 241, 0.45);
+}
+
+[data-theme="dark"] .card-copy-btn.copied {
+    background: rgba(22, 163, 74, 0.25);
+    color: #86efac;
+    border-color: rgba(34, 197, 94, 0.45);
 }
 
 /* ---------------- PASTE DROP ZONE ---------------- */

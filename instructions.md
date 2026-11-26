@@ -102,8 +102,14 @@ If any file throws a syntax error, fix it immediately.
 - If `#itemModal` contains UNSAVED changes (title, description, tags, group, favorite, or done edited, or image attached/removed), pressing `Escape` or clicking outside MUST NOT close the dialog. It MUST remain open to prevent accidental data loss until the user explicitly clicks `Save Item` or `Cancel`.
 
 ### 14. Tab 3 Sync & Tab 1 Reactive Auto-Refresh Invariants
-- When `Apply & Sync into Active Library (IndexedDB)` is clicked in Tab 3, the synchronizer MUST directly invoke `await libMod.loadData()` if `LibraryModule` is initialized so Tab 1 state is immediately fresh.
+- When `✨ Apply and Sync` is clicked in Tab 3, the synchronizer MUST directly invoke `await libMod.loadData()` if `LibraryModule` is initialized so Tab 1 state is immediately fresh.
 - `LibraryModule` MUST implement `async onActivate() { await this.loadData(); }` so that whenever the user switches to Tab 1, it queries IndexedDB and re-renders groups and items. Tab 1 content must NEVER require a manual browser reload to display newly synced items.
+- The Tab 3 diff table MUST include an Image status column (`🖼️ Image Added`, `🖼️ Kept`, `✕ No Image`) reflecting whether an image was matched to each title, and `✨ Apply and Sync` MUST sit beside `💾 Update backup`.
+
+### 14b. Tab 1 Quick Copy, Auto-Backup & Retention Invariants
+- Each item card in Tab 1 MUST expose direct `📋 Image` and `📝 Text` quick-copy shortcut buttons (`.card-copy-img-btn`, `.card-copy-txt-btn`) with `e.stopPropagation()` so users can copy without opening the detail modal.
+- All Tab 1 IndexedDB mutations MUST trigger `scheduleAutoBackup()` (5-second debounce posting to `/save-backup?auto=1`).
+- Backend backup handlers (`/save-backup` and `/api/update-backup`) MUST invoke `cleanup_old_backups()` to enforce `max_backup_files` (default `5` in `config.json`) on `library-backup-*.json` files without deleting custom user JSON files.
 
 ### 15. Tab 3 Target Group Dropdown & Selection Invariants
 - `populateExistingGroupsList()` in Tab 3 MUST scan both the root `groups` array (strings and `{ id, name }` objects) AND all unique non-empty `group` fields inside `items`.

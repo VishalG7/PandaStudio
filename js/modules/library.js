@@ -441,7 +441,9 @@ export const LibraryModule = {
     },
 
     async loadData() {
-        this.state.groups = (await dbGetAll("groups")) || [];
+        this.state.groups = ((await dbGetAll("groups")) || []).sort(
+            (a, b) => (a.order ?? Number.MAX_SAFE_INTEGER) - (b.order ?? Number.MAX_SAFE_INTEGER)
+        );
         this.state.items = (await dbGetAll("items")) || [];
 
         // Clean up orphan items if their assigned group was deleted and no longer exists
@@ -624,6 +626,10 @@ export const LibraryModule = {
                     <div class="card-title">${this.escapeHtml(item.title || "Untitled")}</div>
                     <div class="card-snippet">${this.escapeHtml(item.text || "No description")}</div>
                     <div class="card-tags">${tagsHtml}</div>
+                    <div class="card-quick-actions">
+                        <button type="button" class="card-copy-btn card-copy-img-btn" title="${item.image ? "Copy image to clipboard" : "No image available"}" ${item.image ? "" : "disabled"}>📋 Image</button>
+                        <button type="button" class="card-copy-btn card-copy-txt-btn" title="${item.text ? "Copy text to clipboard" : "No text available"}" ${item.text ? "" : "disabled"}>📝 Text</button>
+                    </div>
                     <div class="card-footer">
                         <span class="type-badge">${typeLabel}</span>
                         ${item.done ? '<span class="done-pill">✓ Done</span>' : ''}
@@ -638,6 +644,40 @@ export const LibraryModule = {
                 doneBtn.onclick = async (e) => {
                     e.stopPropagation();
                     await this.toggleDone(item.id);
+                };
+            }
+
+            const copyImgBtn = card.querySelector(".card-copy-img-btn");
+            if (copyImgBtn) {
+                copyImgBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    await this.copyImage(item);
+                    if (item.image) {
+                        const orig = copyImgBtn.textContent;
+                        copyImgBtn.textContent = "✓ Copied";
+                        copyImgBtn.classList.add("copied");
+                        setTimeout(() => {
+                            copyImgBtn.textContent = orig;
+                            copyImgBtn.classList.remove("copied");
+                        }, 1200);
+                    }
+                };
+            }
+
+            const copyTxtBtn = card.querySelector(".card-copy-txt-btn");
+            if (copyTxtBtn) {
+                copyTxtBtn.onclick = async (e) => {
+                    e.stopPropagation();
+                    await this.copyText(item);
+                    if (item.text) {
+                        const orig = copyTxtBtn.textContent;
+                        copyTxtBtn.textContent = "✓ Copied";
+                        copyTxtBtn.classList.add("copied");
+                        setTimeout(() => {
+                            copyTxtBtn.textContent = orig;
+                            copyTxtBtn.classList.remove("copied");
+                        }, 1200);
+                    }
                 };
             }
 
@@ -686,12 +726,20 @@ export const LibraryModule = {
             const count = this.state.items.filter(i => i.group === g.id).length;
             const row = document.createElement("div");
             row.className = "sidebar-group-row";
+            row.draggable = true;
+            row.setAttribute("data-group-id", g.id);
 
             const btn = document.createElement("button");
             btn.className = "sidebar-nav-item";
+            if (this.state.currentFilter.type === "group" && this.state.currentFilter.value === g.id) {
+                btn.classList.add("active");
+            }
             btn.setAttribute("data-group-id", g.id);
             btn.innerHTML = `
-                <span style="white-space:nowrap; overflow:hidden; text-overflow:ellipsis; max-width:140px;">📁 ${this.escapeHtml(g.name)}</span>
+                <span class="sidebar-group-label-wrap">
+                    <span class="group-drag-handle" title="Drag to reorder">⋮⋮</span>
+                    <span class="sidebar-group-name">📁 ${this.escapeHtml(g.name)}</span>
+                </span>
                 <span class="sidebar-count-badge">${count}</span>
             `;
             btn.onclick = () => this.setFilter("group", g.id);
@@ -712,12 +760,75 @@ export const LibraryModule = {
                 this.deleteGroup(g.id);
             };
 
+            // Drag & drop reordering handlers
+            row.addEventListener("dragstart", e => {
+                this._draggedGroupId = g.id;
+                row.classList.add("dragging");
+                if (e.dataTransfer) {
+                    e.dataTransfer.effectAllowed = "move";
+                    e.dataTransfer.setData("text/plain", g.id);
+                }
+            });
+
+            row.addEventListener("dragover", e => {
+                if (!this._draggedGroupId || this._draggedGroupId === g.id) return;
+                e.preventDefault();
+                if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+                const rect = row.getBoundingClientRect();
+                const insertAfter = e.clientY > rect.top + rect.height / 2;
+                row.classList.toggle("drag-over-top", !insertAfter);
+                row.classList.toggle("drag-over-bottom", insertAfter);
+            });
+
+            row.addEventListener("dragleave", () => {
+                row.classList.remove("drag-over-top", "drag-over-bottom");
+            });
+
+            row.addEventListener("drop", async e => {
+                e.preventDefault();
+                const rect = row.getBoundingClientRect();
+                const insertAfter = e.clientY > rect.top + rect.height / 2;
+                row.classList.remove("drag-over-top", "drag-over-bottom");
+                const draggedId = this._draggedGroupId;
+                this._draggedGroupId = null;
+                if (draggedId && draggedId !== g.id) {
+                    await this.reorderGroup(draggedId, g.id, insertAfter);
+                }
+            });
+
+            row.addEventListener("dragend", () => {
+                this._draggedGroupId = null;
+                container.querySelectorAll(".sidebar-group-row").forEach(el => {
+                    el.classList.remove("dragging", "drag-over-top", "drag-over-bottom");
+                });
+            });
+
             row.appendChild(btn);
             row.appendChild(actions);
             container.appendChild(row);
         });
 
         this.renderGroupSelect();
+    },
+
+    async reorderGroup(draggedId, targetId, insertAfter = false) {
+        const fromIdx = this.state.groups.findIndex(g => g.id === draggedId);
+        const toIdxRaw = this.state.groups.findIndex(g => g.id === targetId);
+        if (fromIdx < 0 || toIdxRaw < 0 || fromIdx === toIdxRaw) return;
+
+        const [moved] = this.state.groups.splice(fromIdx, 1);
+        let targetIdx = this.state.groups.findIndex(g => g.id === targetId);
+        if (insertAfter) targetIdx += 1;
+        this.state.groups.splice(targetIdx, 0, moved);
+
+        for (let i = 0; i < this.state.groups.length; i++) {
+            this.state.groups[i].order = i;
+            await dbPut("groups", this.state.groups[i]);
+        }
+
+        this.renderGroups();
+        this.scheduleAutoBackup();
+        this.app.log(this.id, `Reordered group "${moved.name}" to position ${targetIdx + 1}`);
     },
 
     renderGroupSelect() {
@@ -963,6 +1074,7 @@ export const LibraryModule = {
             this.closeItemModal();
             this.renderTags();
             this.renderItems();
+            this.scheduleAutoBackup();
             this.app.log(this.id, `Item saved: "${itemRecord.title}"`, { id: itemRecord.id, group: itemRecord.group, tags: itemRecord.tags });
             this.app.showToast("Item saved successfully", "success");
         } catch (err) {
@@ -1015,6 +1127,7 @@ export const LibraryModule = {
             }
         }
         this.renderItems();
+        this.scheduleAutoBackup();
         this.app.log(this.id, `Bulk marked ${selectedIds.length} item(s) as ${isDone ? "done" : "incomplete"}`);
         this.app.showToast(`Marked ${selectedIds.length} item(s) as ${isDone ? "done" : "incomplete"}`, "success");
     },
@@ -1047,6 +1160,7 @@ export const LibraryModule = {
             this.renderTags();
             this.renderGroups();
             this.renderItems();
+            this.scheduleAutoBackup();
             this.app.log(this.id, `Bulk deleted ${count} selected item(s)`);
             this.app.showToast(`Deleted ${count} item(s)`, "info");
         } catch (err) {
@@ -1063,6 +1177,7 @@ export const LibraryModule = {
             this.renderTags();
             this.renderGroups();
             this.renderItems();
+            this.scheduleAutoBackup();
             this.app.log(this.id, `Deleted item`, { id });
             this.app.showToast("Item deleted", "info");
         } catch (err) {
@@ -1139,6 +1254,7 @@ export const LibraryModule = {
         item.updatedAt = Date.now();
         await dbPut("items", item);
         this.renderItems();
+        this.scheduleAutoBackup();
 
         if (this.state.detailItemId === id) {
             this.container.querySelector("#detailToggleFavBtn").textContent = item.favorite ? "★ Favorited" : "☆ Add Favorite";
@@ -1153,6 +1269,7 @@ export const LibraryModule = {
         item.updatedAt = Date.now();
         await dbPut("items", item);
         this.renderItems();
+        this.scheduleAutoBackup();
 
         if (this.state.detailItemId === id) {
             this.updateDetailDoneBtn(item);
@@ -1173,6 +1290,9 @@ export const LibraryModule = {
 
         try {
             let clipboardBlob = item.image;
+            if (typeof clipboardBlob === "string") {
+                clipboardBlob = await (await fetch(clipboardBlob)).blob();
+            }
 
             // Normalize non-PNG blobs to PNG on an off-screen canvas for OS clipboard support
             if (clipboardBlob.type !== "image/png") {
@@ -1237,10 +1357,11 @@ export const LibraryModule = {
             return;
         }
 
-        const newGrp = { id: crypto.randomUUID(), name };
+        const newGrp = { id: crypto.randomUUID(), name, order: this.state.groups.length };
         await dbPut("groups", newGrp);
         this.state.groups.push(newGrp);
         this.renderGroups();
+        this.scheduleAutoBackup();
         this.container.querySelector("#groupModal").classList.remove("show");
         this.app.log(this.id, `Created group "${name}"`, { id: newGrp.id });
         this.app.showToast(`Group "${name}" created`, "success");
@@ -1257,6 +1378,7 @@ export const LibraryModule = {
         await dbPut("groups", grp);
         this.renderGroups();
         this.renderItems();
+        this.scheduleAutoBackup();
         this.app.log(this.id, `Renamed group "${grp.name}" to "${next.trim()}"`, { id });
         this.app.showToast("Group renamed", "success");
     },
@@ -1301,6 +1423,7 @@ export const LibraryModule = {
                 this.renderTags();
                 this.renderItems();
             }
+            this.scheduleAutoBackup();
             this.app.log(this.id, `Deleted group "${grp.name}" and ${count} item(s)`, { id, deletedItemsCount: count });
             this.app.showToast(`Deleted group "${grp.name}" and ${count} item(s)`, "info");
         } catch (err) {
@@ -1331,37 +1454,77 @@ export const LibraryModule = {
         return new Blob([array], { type: mime });
     },
 
+    async buildBackupPayload() {
+        const exportedItems = [];
+        for (const item of this.state.items) {
+            let imageBase64 = null;
+            if (item.image) {
+                imageBase64 = await this.blobToBase64(item.image);
+            }
+
+            // Resolve group name instead of cryptic group UUID
+            const grp = this.state.groups.find(g => g.id === item.group);
+            const groupName = grp ? grp.name : null;
+
+            exportedItems.push({
+                ...item,
+                group: groupName,
+                image: imageBase64
+            });
+        }
+
+        const exportedGroups = this.state.groups.map(g => g.name);
+
+        return {
+            version: 2,
+            exportedAt: new Date().toISOString(),
+            groups: exportedGroups,
+            items: exportedItems
+        };
+    },
+
+    scheduleAutoBackup(delayMs = 5000) {
+        if (this._autoBackupTimer) {
+            clearTimeout(this._autoBackupTimer);
+        }
+        this._autoBackupTimer = setTimeout(() => {
+            this._autoBackupTimer = null;
+            this.runAutoBackup();
+        }, delayMs);
+    },
+
+    async runAutoBackup() {
+        if (this._isAutoBackingUp) {
+            this.scheduleAutoBackup(3000);
+            return;
+        }
+        this._isAutoBackingUp = true;
+        try {
+            const data = await this.buildBackupPayload();
+            const res = await fetch("/save-backup?auto=1", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data)
+            });
+            if (res.ok) {
+                const resData = await res.json();
+                if (resData.success) {
+                    const cleanedMsg = resData.cleanedUp?.length ? ` (cleaned ${resData.cleanedUp.length} old backup(s))` : "";
+                    this.app.log(this.id, `Auto-backup saved: ${resData.filename}${cleanedMsg}`, { items: data.items.length });
+                }
+            }
+        } catch {
+            // Silently ignore if server is offline
+        } finally {
+            this._isAutoBackingUp = false;
+        }
+    },
+
     async exportBackup() {
         this.app.showToast("Preparing backup package...", "info");
 
         try {
-            const exportedItems = [];
-            for (const item of this.state.items) {
-                let imageBase64 = null;
-                if (item.image) {
-                    imageBase64 = await this.blobToBase64(item.image);
-                }
-
-                // Resolve group name instead of cryptic group UUID
-                const grp = this.state.groups.find(g => g.id === item.group);
-                const groupName = grp ? grp.name : null;
-
-                exportedItems.push({
-                    ...item,
-                    group: groupName,
-                    image: imageBase64
-                });
-            }
-
-            // Export groups as clean names
-            const exportedGroups = this.state.groups.map(g => g.name);
-
-            const data = {
-                version: 2,
-                exportedAt: new Date().toISOString(),
-                groups: exportedGroups,
-                items: exportedItems
-            };
+            const data = await this.buildBackupPayload();
 
             // Attempt save to local Python server
             let serverSaved = false;
@@ -1374,7 +1537,8 @@ export const LibraryModule = {
                 const resData = await res.json();
                 if (res.ok && resData.success) {
                     serverSaved = true;
-                    this.app.showToast(`Backup saved to server: ${resData.filename}`, "success");
+                    const cleanedMsg = resData.cleanedUp?.length ? ` (cleaned ${resData.cleanedUp.length} old)` : "";
+                    this.app.showToast(`Backup saved to server: ${resData.filename}${cleanedMsg}`, "success");
                 }
             } catch {
                 serverSaved = false;
@@ -1439,7 +1603,7 @@ export const LibraryModule = {
                         existing => existing.name.toLowerCase() === gName.toLowerCase()
                     );
                     if (!exists) {
-                        const newGroup = { id: crypto.randomUUID(), name: gName };
+                        const newGroup = { id: crypto.randomUUID(), name: gName, order: this.state.groups.length };
                         this.state.groups.push(newGroup);
                         await dbPut("groups", newGroup);
                     }
@@ -1471,7 +1635,7 @@ export const LibraryModule = {
 
                     // If group does not exist, automatically add it with the name from JSON!
                     if (!matchedGroup) {
-                        matchedGroup = { id: crypto.randomUUID(), name: targetGroupName };
+                        matchedGroup = { id: crypto.randomUUID(), name: targetGroupName, order: this.state.groups.length };
                         this.state.groups.push(matchedGroup);
                         await dbPut("groups", matchedGroup);
                     }
@@ -1498,6 +1662,7 @@ export const LibraryModule = {
             this.renderGroups();
             this.renderTags();
             this.renderItems();
+            this.scheduleAutoBackup();
             this.app.showToast(`Imported ${data.items.length} items successfully`, "success");
         } catch (err) {
             console.error(err);

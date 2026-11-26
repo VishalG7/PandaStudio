@@ -147,8 +147,8 @@ Full image-prompt catalogue and asset management system:
 - **Natural Numerical Sorting:** Intelligently sorts items whose titles begin with numbers (`1.`, `2.`, `28. Stick Insect`).
 - **Real-Time Filtering:** Search across titles, descriptions, and tags with sidebar filters for Favorites, Groups, and Tags.
 - **Group Management with Cascade Deletion:** Deleting a group automatically purges all items assigned to that group to prevent orphaned ghost items.
-- **Multi-Action Clipboard:** Copy Image (auto-normalizes to standard PNG format), Copy Text, or Copy Both in one click.
-- **Automated Snapshots:** Exports and automatically saves backups to `backups/library-backup-YYYYMMDD_HHMMSS.json`.
+- **Multi-Action Clipboard & Card Shortcuts:** Copy Image (auto-normalizes to standard PNG format), Copy Text, or Copy Both in one click. Direct `📋 Image` and `📝 Text` quick-copy buttons are placed on every item card so you can copy without opening the detail modal.
+- **Automated Debounced Backup & Retention Cleanup:** Edits in Tab 1 automatically sync to `backups/library-backup-auto.json` after 5 seconds of inactivity. Manual `📤 Export / Backup` creates timestamped `backups/library-backup-YYYYMMDD_HHMMSS.json` snapshots, and the server automatically retains only the newest `max_backup_files` (default `5`, configurable in `config.json`) while cleaning up older snapshots.
 
 ---
 
@@ -175,7 +175,7 @@ Smart reconciliation and merge engine for scene prompts:
 - **Data & Image Preservation:** Preserves existing binary Base64 images, tags, and favorites. Never deletes image data unless replaced.
 - **Ghost Item Prevention:** Automatically sweeps and eliminates empty imageless duplicate records.
 - **Enhanced File Pickers:** Polished Choose Files buttons for image folders and JSON patches with status badges and consistent typography.
-- **Instant Live Sync to Tab 1:** Previews an item-by-item diff table, updates backup in-place on disk, saves a new snapshot, downloads JSON, or syncs directly into the live browser IndexedDB with instantaneous Tab 1 auto-refresh (no manual reload needed).
+- **Instant Live Sync to Tab 1:** Previews an item-by-item diff table (including an **Image** column showing `🖼️ Image Added`, `🖼️ Kept`, or `✕ No Image` per title), updates backup in-place via **`💾 Update backup`**, syncs directly into the live browser IndexedDB via **`✨ Apply and Sync`** (placed side-by-side with Update backup, with instantaneous Tab 1 auto-refresh), saves a new snapshot, or downloads JSON.
 
 ---
 
@@ -189,7 +189,7 @@ Arbitrary $N$-tile grid slicing tool:
 
 ### Tab 5: 🎙️ Text to Speech (`tts`)
 Convert text and video prompts into natural neural speech:
-- **Freely Available AI Voice Models:** Over 40+ curated neural voices (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian) without requiring any API keys.
+- **Freely Available AI Voice Models:** Over 40+ curated neural voices (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian) without requiring any API keys. Automatically detects Hindi/Devanagari script and falls back to `hi-IN-SwaraNeural` if an English voice is selected.
 - **Python Backend Engine:** Synthesizes audio using Python `edge-tts` and saves directly to disk in the local `audio/` directory as MP3.
 - **In-Browser Playback:** Interactive audio player with auto-play, replay, seek, and volume control.
 - **Voice Fine-Tuning:** Adjustable speaking speed (0.75x to 1.5x) and voice pitch presets.

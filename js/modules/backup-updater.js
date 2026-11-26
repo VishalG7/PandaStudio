@@ -168,6 +168,7 @@ export const BackupUpdaterModule = {
                                     <th>Status</th>
                                     <th>Item ID</th>
                                     <th>Title (Old → New)</th>
+                                    <th>Image</th>
                                     <th>Group Name</th>
                                     <th>Text Preview</th>
                                 </tr>
@@ -177,18 +178,18 @@ export const BackupUpdaterModule = {
                     </div>
 
                     <!-- Action Buttons -->
-                    <div style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; background:white; padding:18px 24px; border-radius:var(--radius-lg); border:1px solid var(--border);">
+                    <div class="updater-actions-bar" style="display:flex; gap:12px; flex-wrap:wrap; align-items:center; background:var(--bg-card); padding:18px 24px; border-radius:var(--radius-lg); border:1px solid var(--border);">
                         <button class="btn btn-primary" id="updaterSaveInPlaceBtn">
-                            💾 Update Backup File In-Place
+                            💾 Update backup
                         </button>
-                        <button class="btn" id="updaterSaveNewSnapshotBtn">
+                        <button class="btn btn-success" id="updaterSyncLibraryBtn">
+                            ✨ Apply and Sync
+                        </button>
+                        <button class="btn" id="updaterSaveNewSnapshotBtn" style="margin-left:auto;">
                             📤 Save as New Timestamped Backup
                         </button>
                         <button class="btn" id="updaterDownloadBtn">
                             ⬇️ Download JSON File
-                        </button>
-                        <button class="btn btn-success" id="updaterSyncLibraryBtn" style="margin-left:auto;">
-                            ✨ Apply & Sync into Active Library (IndexedDB)
                         </button>
                     </div>
                 </div>
@@ -712,10 +713,14 @@ export const BackupUpdaterModule = {
                 existingItem.updatedAt = now;
 
                 // Attach image from folder if available
+                let imageStatus = existingItem.image ? "existing" : "none";
+                let imageName = "";
                 if (imgMap.has(existingItem.title)) {
                     const imgFile = imgMap.get(existingItem.title);
                     console.log(`[BackupUpdater] Reading image for existing item title "${existingItem.title}" from ${imgFile.name}`);
                     existingItem.image = await this.readFileAsDataURL(imgFile);
+                    imageStatus = "added";
+                    imageName = imgFile.name;
                 }
 
                 updatedCount++;
@@ -725,6 +730,8 @@ export const BackupUpdaterModule = {
                     status: "updated",
                     oldTitle,
                     newTitle: existingItem.title,
+                    imageStatus,
+                    imageName,
                     group: targetGroupName,
                     textSnippet: existingItem.text || ""
                 });
@@ -732,10 +739,14 @@ export const BackupUpdaterModule = {
                 // ADD NEW ITEM WITH DEFAULT VALUES FOR CURRENT DATE/TIME
                 const itemTitle = newTitle !== null ? newTitle : "Untitled";
                 let itemImage = null;
+                let imageStatus = "none";
+                let imageName = "";
                 if (imgMap.has(itemTitle)) {
                     const imgFile = imgMap.get(itemTitle);
                     console.log(`[BackupUpdater] Reading image for new item title "${itemTitle}" from ${imgFile.name}`);
                     itemImage = await this.readFileAsDataURL(imgFile);
+                    imageStatus = "added";
+                    imageName = imgFile.name;
                 }
 
                 const newItem = {
@@ -759,6 +770,8 @@ export const BackupUpdaterModule = {
                     status: "new",
                     oldTitle: "-",
                     newTitle: newItem.title,
+                    imageStatus,
+                    imageName,
                     group: targetGroupName,
                     textSnippet: newItem.text || ""
                 });
@@ -832,6 +845,13 @@ export const BackupUpdaterModule = {
                 ? `<span style="color:var(--text-muted); text-decoration:line-through;">${this.escapeHtml(d.oldTitle)}</span> → <strong>${this.escapeHtml(d.newTitle)}</strong>`
                 : `<strong>${this.escapeHtml(d.newTitle)}</strong>`;
 
+            let imageBadge = `<span class="badge-img-none">✕ No Image</span>`;
+            if (d.imageStatus === "added") {
+                imageBadge = `<span class="badge-img-added" title="Matched from folder: ${this.escapeHtml(d.imageName || "")}">🖼️ Image Added</span>`;
+            } else if (d.imageStatus === "existing") {
+                imageBadge = `<span class="badge-img-existing" title="Existing image preserved from backup">🖼️ Kept</span>`;
+            }
+
             const snippet = d.textSnippet.length > 70
                 ? `${d.textSnippet.slice(0, 70)}...`
                 : d.textSnippet;
@@ -840,6 +860,7 @@ export const BackupUpdaterModule = {
                 <td>${statusBadge}</td>
                 <td><code>${this.escapeHtml(d.id)}</code></td>
                 <td>${titleDisplay}</td>
+                <td>${imageBadge}</td>
                 <td><span class="card-tag">${this.escapeHtml(d.group)}</span></td>
                 <td style="color:var(--text-secondary); font-size:12px;">${this.escapeHtml(snippet)}</td>
             `;
@@ -917,7 +938,7 @@ export const BackupUpdaterModule = {
             if (!gName) continue;
             const exists = existingGroups.some(g => g.name.toLowerCase() === gName.toLowerCase());
             if (!exists) {
-                const newGrp = { id: crypto.randomUUID(), name: gName };
+                const newGrp = { id: crypto.randomUUID(), name: gName, order: existingGroups.length };
                 existingGroups.push(newGrp);
                 await dbPut("groups", newGrp);
             }

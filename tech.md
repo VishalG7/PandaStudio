@@ -134,8 +134,10 @@ Organize, view, filter, copy, and maintain pairs of prompt text and generated im
    - Multi-select checkboxes on cards.
    - "Select All" / "Deselect All" button.
    - Bulk Mark Done, Bulk Mark Incomplete, and Bulk Delete buttons with item counts and confirmation.
-7. **Export & Import:**
-   - **Export / Auto-Backup:** Translates internal UUIDs into human-readable group names (e.g. `"group": "In"`), formats as formatted JSON, preserves `done` completion status, downloads locally, and automatically saves to `backups/` via `POST /save-backup`.
+7. **Export, Auto-Backup & Retention Cleanup:**
+   - **Direct Card Copy Shortcuts:** Each card displays `📋 Image` and `📝 Text` quick-copy buttons (`.card-quick-actions`) with `✓ Copied` feedback, calling `copyImage()` / `copyText()` without opening `#detailModal`.
+   - **5-Second Debounced Auto-Backup:** Every Tab 1 mutation (`saveItem`, `toggleDone`, `toggleFavorite`, `deleteItem`, bulk actions, group CRUD, import) calls `scheduleAutoBackup(5000)`, which posts the serialized library to `POST /save-backup?auto=1` (`backups/library-backup-auto.json`).
+   - **Manual Export & Retention Cleanup:** `exportBackup()` writes `backups/library-backup-YYYYMMDD_HHMMSS.json` via `POST /save-backup`. Both `/save-backup` and `/api/update-backup` run `cleanup_old_backups()` to keep only the newest `max_backup_files` (default `5`, configured in `config.json`) `library-backup-*.json` files and delete older snapshots.
    - **Import JSON:** Merges or restores items, automatically creating referenced groups if they do not yet exist, and restoring `done` status.
 8. **Modal Dismiss & Unsaved Changes Guard:**
    - When viewing saved item details (`#detailModal`) with no changes, pressing `Escape` or clicking outside the dialog (on the backdrop) immediately closes the modal.
@@ -214,11 +216,11 @@ Takes external input JSON (e.g. generated prompt scripts) containing only `id`, 
    - `🎯 Match by Title if ID doesn't match`: Prevents creating duplicate entries for items with UUIDs.
    - `🔄 Replace all existing items in Target Group`: Wipes existing items from the target group before inserting new ones.
 6. **Diff & Action Panel:**
-   - Real-time diff table previewing status (`Updated` / `New Item`), Old Title → New Title, Group, and Text preview.
-   - **Update Backup In-Place:** Overwrites the current base file on disk (`POST /api/update-backup` with `overwrite: true`).
+   - Real-time diff table previewing status (`Updated` / `New Item`), Old Title → New Title, **Image** match status (`🖼️ Image Added`, `🖼️ Kept`, or `✕ No Image`), Group, and Text preview.
+   - **`💾 Update backup`:** Overwrites the current base file on disk (`POST /api/update-backup` with `overwrite: true`) and runs `cleanup_old_backups()`.
+   - **`✨ Apply and Sync`:** Placed directly beside `💾 Update backup`; syncs merged items into browser IndexedDB and immediately triggers `await LibraryModule.loadData()`, ensuring Tab 1 reflects all synced items and groups without a manual page reload.
    - **Save as New Snapshot:** Creates a new timestamped file `library-backup-YYYYMMDD_HHMMSS.json`.
    - **Download JSON File:** Direct client download.
-   - **Apply & Sync into Active Library:** Directly syncs merged items into browser IndexedDB and immediately triggers `await LibraryModule.loadData()`, ensuring Tab 1 reflects all synced items and groups without a manual page reload.
 
 ---
 
@@ -333,8 +335,8 @@ Generates high-fidelity natural neural speech from text or video prompts using f
 | `GET` | `/api/logs` | Returns list of log files in `backups/logs/` with size and mtime |
 | `GET` / `POST` | `/api/open-logs` | Opens the physical `backups/logs/` directory in Windows Explorer |
 | `GET` / `POST` | `/api/open-folder` | Alias for `/api/open-logs` to open folder in OS file manager |
-| `POST` | `/save-backup` | Saves backup JSON into `backups/library-backup-YYYYMMDD_HHMMSS.json` |
-| `POST` | `/api/update-backup` | Updates existing backup in-place or creates new timestamped file |
+| `POST` | `/save-backup` | Saves backup JSON (`library-backup-YYYYMMDD_HHMMSS.json`, or `library-backup-auto.json` with `?auto=1`) and runs retention cleanup |
+| `POST` | `/api/update-backup` | Updates existing backup in-place or creates new timestamped file, then runs retention cleanup |
 | `POST` | `/api/log` | Appends formatted action log line to `backups/logs/app-YYYY-MM-DD.log` |
 | `GET` | `/api/tts/voices` | Returns catalog of freely available neural voice models |
 | `GET` | `/api/tts/history` | Returns list of generated MP3 audio files and metadata |

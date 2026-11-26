@@ -194,6 +194,51 @@
     font-weight: 600;
 }
 
+.badge-img-added {
+    background: #dcfce7;
+    color: #15803d;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-img-existing {
+    background: #e0f2fe;
+    color: #0369a1;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+.badge-img-none {
+    background: #fef3c7;
+    color: #b45309;
+    padding: 2px 8px;
+    border-radius: 999px;
+    font-size: 11px;
+    font-weight: 600;
+    white-space: nowrap;
+}
+
+[data-theme="dark"] .badge-img-added {
+    background: rgba(22, 163, 74, 0.25);
+    color: #86efac;
+}
+
+[data-theme="dark"] .badge-img-existing {
+    background: rgba(2, 132, 199, 0.25);
+    color: #7dd3fc;
+}
+
+[data-theme="dark"] .badge-img-none {
+    background: rgba(217, 119, 6, 0.25);
+    color: #fcd34d;
+}
+
 /* ---------------- FILE PICKER ENHANCEMENTS ---------------- */
 
 .file-picker-control {
