@@ -19,7 +19,7 @@ a = Analysis(
     hookspath=[],
     hooksconfig={},
     runtime_hooks=[],
-    excludes=['tkinter', 'unittest', 'pydoc'],
+    excludes=['tkinter', 'unittest', 'pydoc', 'faster_whisper', 'ctranslate2', 'onnxruntime', 'av', 'numpy', 'scipy', 'torch', 'tensorflow'],
     noarchive=False,
 )
 

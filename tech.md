@@ -16,6 +16,7 @@
    - [Tab 3: 🔄 Backup JSON Updater & Sync (`backup-updater`)](#tab-3--backup-json-updater--sync-backup-updater)
    - [Tab 4: 🪟 Grid Slicer (N-Tiles) (`grid-splitter`)](#tab-4--grid-slicer-n-tiles-grid-splitter)
    - [Tab 5: 🎙️ Text to Speech (`tts`)](#tab-5-️-text-to-speech-tts)
+   - [Tab 6: 💬 Offline SRT Subtitles (`srt`)](#tab-6--offline-srt-subtitles-srt)
 3. [Core Services & Global Features](#3-core-services--global-features)
    - [Central App Kernel (`js/app.js`)](#central-app-kernel-jsappjs)
    - [Settings & About Modal](#settings--about-modal)
@@ -290,11 +291,33 @@ Generates high-fidelity natural neural speech from text or video prompts using f
 
 ---
 
+### Tab 6: 💬 Offline SRT Subtitles (`srt`)
+
+- **Identifier:** `srt`
+- **File:** `js/modules/srt.js`
+- **CSS:** `css/srt.css`
+
+#### Purpose
+Generates timestamped `.srt` subtitle files from finalized `.mp4`, `.mkv`, `.mov`, `.webm`, `.mp3`, or `.wav` files completely offline using local `ffmpeg` and `faster-whisper`.
+
+#### Core Features
+1. **Offline Audio Decoding Pipeline:**
+   - Streams media uploads in 1 MB chunks to a temporary file, extracts 16kHz mono PCM WAV using `ffmpeg`, and loads it directly via Python's built-in `wave` + `numpy` (`float32` array) — bypassing PyAV `av.open(metadata_errors=...)` compatibility issues.
+2. **Model & Language Controls:**
+   - Models: `tiny`, `base`, `small` (default, cached locally), `medium`, `large-v3-turbo`, and `large-v3` (loaded with `compute_type="int8"` on CPU and cached in `_WHISPER_MODELS`).
+   - Hindi Devanagari accuracy: Uses `beam_size=5`, automatic Devanagari `initial_prompt` conditioning when `language="hi"`, plus an optional Vocabulary/Script Hint input (`#srtHintInput`).
+   - Supports `Transcribe` (original language) and `Translate Speech → English SRT`, plus VAD silence filtering.
+3. **Live Progress Bar & Editor:**
+   - `XMLHttpRequest` upload progress (`0–14%`) combined with `/api/srt/progress?jobId=...` polling (`600ms`) for live `ffmpeg`, model loading, and per-segment percentage/timestamp updates.
+   - Built-in `.srt` editor with `⬇️ Download .SRT`, `📋 Copy SRT`, `💾 Save Edits to Disk`, and `subtitles/` history management.
+
+---
+
 ## 3. Core Services & Global Features
 
 ### Central App Kernel (`js/app.js`)
 - **Module Registration:** `App.registerModule(config)` dynamically adds tools to navigation.
-- **Module Navigation:** Renders `#moduleNav` dynamically with icons and names.
+- **Responsive Overflow Navigation:** `layoutNavigation()` measures available header width on load/resize and automatically moves overflowing tabs into a **`More (N) ▾`** dropdown menu (`.nav-more-menu`).
 - **Tab Switching:** `switchModule(targetId)` hides inactive viewports (`.module-viewport`), activates selected container, updates URL hash `#moduleId`, and initializes the module on first mount.
 - **Toast Notifications:** `App.showToast(message, type, duration)` shows floating success, error, or info toasts.
 
@@ -302,6 +325,7 @@ Generates high-fidelity natural neural speech from text or video prompts using f
 - **Location:** Header gear icon (`#appSettingsBtn`) in top-left.
 - **Contents:**
   - **Theme Toggle:** Switch between ☀️ Light Mode and 🌙 Dark Mode.
+  - **Library Behavior (`Auto-Mark Done on Copy`):** Toggle (`#autoMarkDoneOnCopyToggle`, persisted in `localStorage` under `panda_studio_auto_done_on_copy`) that automatically marks Tab 1 items as Done once both text and image have been copied.
   - **Shortcuts:** One-click shortcut to YouTube Creator Studio (`https://studio.youtube.com/`).
   - **Open Logs Folder Button:** `#openLogsFolderBtn` button triggers `GET /api/open-logs` to directly open the physical `backups/logs/` directory in Windows Explorer.
   - **About:** Displays app name (🐼 Panda Studio), developer name (**Vishal**), active version, and activity log directory path (`backups/logs/`).
@@ -344,6 +368,12 @@ Generates high-fidelity natural neural speech from text or video prompts using f
 | `POST` | `/api/tts/generate` | Generates speech via Python `edge-tts` and saves MP3 in `audio/` |
 | `POST` | `/api/tts/delete` | Deletes generated MP3 and metadata from `audio/` directory |
 | `POST` | `/api/open-audio` | Opens the local `audio/` directory in Windows Explorer |
+| `POST` | `/api/srt/generate` | Extracts audio via `ffmpeg` and generates `.srt` offline via `faster-whisper` |
+| `GET` | `/api/srt/progress` | Returns live progress percentage, stage, and segment timestamps for `jobId` |
+| `GET` | `/api/srt/history` | Lists saved `.srt` files in `subtitles/` |
+| `GET` | `/subtitles/<filename>` | Serves or downloads saved `.srt` files from `subtitles/` |
+| `POST` | `/api/srt/save` | Saves edited `.srt` text back to `subtitles/` |
+| `POST` | `/api/srt/delete` | Deletes a saved `.srt` file from `subtitles/` |
 
 ---
 

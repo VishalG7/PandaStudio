@@ -130,6 +130,17 @@ If any file throws a syntax error, fix it immediately.
 - Provides freely available neural voice models across multiple languages and accents (US, UK, Indian, Australian, Canadian, Hindi, European, and Asian).
 - Text-to-speech actions, voice selections, and downloads must be logged via `this.app.log(...)`.
 
+### 18. Tab 1 Group Reorder, Auto-Done on Copy & Tab 2 Batch Trim Invariants
+- Sidebar groups in Tab 1 MUST support drag-and-drop reordering with persistent numeric `order` fields in IndexedDB.
+- The `Auto-Mark Done on Copy` setting toggle (`panda_studio_auto_done_on_copy`) MUST track per-item copied parts (`copiedParts`) and automatically mark an item as Done once all available parts (text + image) have been copied.
+- Tab 2 (`4-Panel Image Trimmer`) MUST retain single-image behavior while supporting multi-image selection/drop into a sequential Batch Queue (`1-4`, `5-8`, `9-12`...) with shared `sliceAndTrimImage()` logic and batch ZIP export.
+
+### 19. Tab 6 Offline SRT & Scalable Navigation Invariants
+- Top navigation (`layoutNavigation()`) MUST automatically tuck overflowing tabs into a `More (N) ▾` dropdown menu based on available header width.
+- Tab 6 (`srt`) MUST decode audio via `ffmpeg` → 16kHz mono WAV → `wave` + `numpy` `float32` array before calling `faster-whisper` `WhisperModel.transcribe()` (to avoid PyAV `metadata_errors` incompatibility).
+- When `language="hi"` and `task="transcribe"`, `server.py` MUST apply Devanagari `initial_prompt` conditioning and `beam_size=5` unless a custom hint is provided.
+- Real-time SRT job progress MUST be exposed via `GET /api/srt/progress?jobId=...`.
+
 ---
 
 ## 🏛 Micro-Kernel Architecture & Adding New Modules

@@ -259,3 +259,166 @@
     font-family: var(--font-mono);
     color: var(--text-muted);
 }
+
+/* ---------------- MULTI-IMAGE BATCH QUEUE ---------------- */
+
+.trimmer-queue-card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    padding: 18px 22px;
+    box-shadow: var(--shadow-sm);
+    margin-bottom: 24px;
+}
+
+.trimmer-queue-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.trimmer-queue-header h3 {
+    font-size: 15px;
+    font-weight: 700;
+    margin: 0;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: var(--text-primary);
+}
+
+.queue-count-pill {
+    font-size: 11.5px;
+    font-weight: 600;
+    padding: 2px 9px;
+    border-radius: 999px;
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.trimmer-queue-list {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    max-height: 300px;
+    overflow-y: auto;
+}
+
+.trimmer-queue-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 8px 12px;
+    border-radius: var(--radius-md);
+    background: var(--bg-subtle);
+    border: 1px solid var(--border);
+    transition: border-color 0.15s ease, background 0.15s ease;
+}
+
+.trimmer-queue-item.status-processing {
+    border-color: var(--primary);
+    background: var(--primary-light);
+}
+
+.trimmer-queue-item.status-done {
+    border-color: rgba(22, 163, 74, 0.35);
+}
+
+.queue-thumb {
+    width: 42px;
+    height: 42px;
+    border-radius: var(--radius-sm);
+    object-fit: cover;
+    border: 1px solid var(--border);
+    flex-shrink: 0;
+}
+
+.queue-info {
+    flex: 1;
+    min-width: 0;
+}
+
+.queue-filename {
+    font-size: 13px;
+    font-weight: 600;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.queue-meta {
+    font-size: 11.5px;
+    color: var(--text-muted);
+    margin-top: 2px;
+}
+
+.queue-start-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    flex-shrink: 0;
+}
+
+.queue-start-wrap label {
+    font-size: 11.5px;
+    font-weight: 600;
+    color: var(--text-secondary);
+}
+
+.queue-start-input {
+    width: 68px;
+    padding: 4px 8px;
+    font-size: 12.5px;
+    text-align: center;
+}
+
+.queue-status-badge {
+    font-size: 11px;
+    font-weight: 600;
+    padding: 2px 8px;
+    border-radius: 999px;
+    white-space: nowrap;
+    flex-shrink: 0;
+}
+
+.queue-status-badge.pending {
+    background: #e2e8f0;
+    color: #475569;
+}
+
+.queue-status-badge.processing {
+    background: var(--primary-light);
+    color: var(--primary);
+}
+
+.queue-status-badge.done {
+    background: #dcfce7;
+    color: #15803d;
+}
+
+.queue-status-badge.error {
+    background: #fee2e2;
+    color: #b91c1c;
+}
+
+[data-theme="dark"] .queue-status-badge.pending {
+    background: #334155;
+    color: #cbd5e1;
+}
+
+[data-theme="dark"] .queue-status-badge.done {
+    background: rgba(22, 163, 74, 0.25);
+    color: #86efac;
+}
+
+[data-theme="dark"] .panel-item-meta {
+    background: #1e293b;
+}
+
+[data-theme="dark"] .folder-path-pill {
+    background: #0f172a;
+}

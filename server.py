@@ -39,15 +39,55 @@ BASE_DIR = EXE_DIR
 BACKUP_DIR = EXE_DIR / "backups"
 LOGS_DIR = BACKUP_DIR / "logs"
 AUDIO_DIR = EXE_DIR / "audio"
+SUBTITLES_DIR = EXE_DIR / "subtitles"
 CONFIG_FILE = EXE_DIR / "config.json"
 
 # Ensure runtime directories exist
 AUDIO_DIR.mkdir(parents=True, exist_ok=True)
+SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
 
 # Active host and port (configurable via CLI, ENV, or config.json)
 CURRENT_HOST = DEFAULT_HOST
 CURRENT_PORT = DEFAULT_PORT
 MAX_BACKUP_FILES = DEFAULT_MAX_BACKUPS
+
+
+_WHISPER_MODELS = {}
+_SRT_JOBS = {}
+
+
+def update_srt_job(job_id, **kwargs):
+    if not job_id:
+        return
+    job = _SRT_JOBS.setdefault(job_id, {"status": "running", "percent": 0, "stage": "Starting...", "detail": ""})
+    job.update(kwargs)
+
+
+def format_srt_timestamp(seconds):
+    """Format float seconds into standard SRT timestamp HH:MM:SS,mmm."""
+    total_ms = max(0, int(round(seconds * 1000)))
+    ms = total_ms % 1000
+    total_sec = total_ms // 1000
+    s = total_sec % 60
+    total_min = total_sec // 60
+    m = total_min % 60
+    h = total_min // 60
+    return f"{h:02d}:{m:02d}:{s:02d},{ms:03d}"
+
+
+def find_ffmpeg_bin():
+    """Locate ffmpeg binary on PATH or common Windows install locations."""
+    import shutil
+    found = shutil.which("ffmpeg")
+    if found:
+        return found
+    for candidate in [
+        r"D:\Developer\FFmpeg\ffmpeg-8.1.2-full_build\bin\ffmpeg.EXE",
+        r"C:\ffmpeg\bin\ffmpeg.exe"
+    ]:
+        if os.path.exists(candidate):
+            return candidate
+    return None
 
 
 def cleanup_old_backups(max_files=None):
@@ -177,6 +217,9 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         if clean.startswith("/api/audio/"):
             rel = clean[len("/api/audio/"):].lstrip("/")
             return str(AUDIO_DIR / rel)
+        if clean.startswith("/subtitles/"):
+            rel = clean[len("/subtitles/"):].lstrip("/")
+            return str(SUBTITLES_DIR / rel)
         # Check if file exists in EXE_DIR (allows user customization outside the bundle)
         exe_target = EXE_DIR / clean.lstrip("/")
         if exe_target.exists() and not exe_target.is_dir():
@@ -208,6 +251,12 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
             self.handle_tts_generate()
         elif clean_path == "/api/tts/delete":
             self.handle_tts_delete()
+        elif clean_path == "/api/srt/generate":
+            self.handle_srt_generate()
+        elif clean_path == "/api/srt/save":
+            self.handle_srt_save()
+        elif clean_path == "/api/srt/delete":
+            self.handle_srt_delete()
         else:
             self.send_json_response({"success": False, "error": f"Endpoint not found: {clean_path}"}, 404)
 
@@ -227,6 +276,8 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
 
             if folder_target == "audio":
                 target_dir = AUDIO_DIR
+            elif folder_target == "subtitles":
+                target_dir = SUBTITLES_DIR
             elif folder_target == "backups":
                 target_dir = BACKUP_DIR
             else:
@@ -399,7 +450,8 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
                 "url": f"http://localhost:{CURRENT_PORT}",
                 "backup_dir": str(BACKUP_DIR),
                 "logs_dir": str(LOGS_DIR),
-                "audio_dir": str(AUDIO_DIR)
+                "audio_dir": str(AUDIO_DIR),
+                "subtitles_dir": str(SUBTITLES_DIR)
             })
             return
         elif clean_path == "/api/latest-backup":
@@ -416,6 +468,15 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
             return
         elif clean_path == "/api/tts/history":
             self.handle_get_tts_history()
+            return
+        elif clean_path == "/api/srt/history":
+            self.handle_get_srt_history()
+            return
+        elif clean_path == "/api/srt/progress":
+            self.handle_get_srt_progress()
+            return
+        if clean_path.startswith("/subtitles/"):
+            self.handle_srt_download()
             return
         if clean_path.startswith("/audio/") or clean_path.startswith("/api/audio/"):
             self.handle_audio_stream()
@@ -845,6 +906,272 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         except Exception as e:
             print(f"[TTS Error] Request failed: {e}")
             self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_get_srt_progress(self):
+        from urllib.parse import parse_qs
+        query_str = self.path.split("?")[1] if "?" in self.path else ""
+        params = parse_qs(query_str)
+        job_id = params.get("jobId", [""])[0]
+        job = _SRT_JOBS.get(job_id, {
+            "status": "pending",
+            "percent": 0,
+            "stage": "Waiting...",
+            "detail": ""
+        })
+        self.send_json_response({"success": True, **job})
+
+    def handle_get_srt_history(self):
+        try:
+            SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
+            srt_files = sorted(
+                list(SUBTITLES_DIR.glob("*.srt")),
+                key=lambda p: p.stat().st_mtime,
+                reverse=True
+            )
+            history = []
+            for f in srt_files:
+                preview = ""
+                try:
+                    with open(f, "r", encoding="utf-8") as sf:
+                        preview = sf.read(300)
+                except Exception:
+                    pass
+                history.append({
+                    "filename": f.name,
+                    "url": f"/subtitles/{f.name}",
+                    "size": f.stat().st_size,
+                    "createdAt": int(f.stat().st_mtime * 1000),
+                    "preview": preview
+                })
+            self.send_json_response({
+                "success": True,
+                "files": history,
+                "subtitles_dir": str(SUBTITLES_DIR)
+            })
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_srt_download(self):
+        clean_path = self.path.split("?")[0]
+        filename = Path(clean_path[len("/subtitles/"):].lstrip("/")).name
+        target_file = SUBTITLES_DIR / filename
+        if not target_file.exists() or not target_file.is_file():
+            self.send_error(404, f"Subtitle file not found: {filename}")
+            return
+
+        data = target_file.read_bytes()
+        query_str = self.path.split("?")[1] if "?" in self.path else ""
+        self.send_response(200)
+        self.send_header("Content-Type", "text/plain; charset=utf-8")
+        self.send_header("Content-Length", str(len(data)))
+        if "download=1" in query_str:
+            self.send_header("Content-Disposition", f'attachment; filename="{filename}"')
+        self.end_headers()
+        try:
+            self.wfile.write(data)
+        except (ConnectionAbortedError, ConnectionResetError, BrokenPipeError):
+            pass
+
+    def handle_srt_save(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self.send_json_response({"success": False, "error": "Empty body"}, 400)
+                return
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            filename = Path(payload.get("filename", "")).name
+            srt_text = payload.get("srtText", "")
+            if not filename or not filename.lower().endswith(".srt"):
+                self.send_json_response({"success": False, "error": "Invalid .srt filename"}, 400)
+                return
+            SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
+            target = SUBTITLES_DIR / filename
+            target.write_text(srt_text, encoding="utf-8")
+            self.send_json_response({
+                "success": True,
+                "filename": filename,
+                "size": target.stat().st_size,
+                "url": f"/subtitles/{filename}"
+            })
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_srt_delete(self):
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self.send_json_response({"success": False, "error": "Empty body"}, 400)
+                return
+            payload = json.loads(self.rfile.read(content_length).decode("utf-8"))
+            filename = Path(payload.get("filename", "")).name
+            target = SUBTITLES_DIR / filename
+            deleted = False
+            if target.exists() and target.is_file():
+                target.unlink()
+                deleted = True
+            self.send_json_response({"success": True, "deleted": deleted, "filename": filename})
+        except Exception as e:
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+
+    def handle_srt_generate(self):
+        import tempfile
+        import subprocess
+        from urllib.parse import parse_qs
+
+        temp_media_path = None
+        temp_wav_path = None
+        job_id = ""
+
+        try:
+            content_length = int(self.headers.get("Content-Length", 0))
+            if content_length <= 0:
+                self.send_json_response({"success": False, "error": "No media file received"}, 400)
+                return
+
+            query_str = self.path.split("?")[1] if "?" in self.path else ""
+            params = parse_qs(query_str)
+            orig_name = Path(params.get("filename", ["video.mp4"])[0]).name
+            model_size = params.get("model", ["base"])[0].strip() or "base"
+            language = params.get("language", ["auto"])[0].strip() or "auto"
+            task = params.get("task", ["transcribe"])[0].strip() or "transcribe"
+            vad_filter = params.get("vad", ["1"])[0] != "0"
+            job_id = params.get("jobId", [""])[0].strip()
+
+            update_srt_job(job_id, status="running", percent=15, stage="Saving uploaded media...", detail=orig_name)
+
+            if model_size not in ("tiny", "base", "small", "medium", "large-v3", "large-v3-turbo"):
+                model_size = "small"
+            if task not in ("transcribe", "translate"):
+                task = "transcribe"
+
+            ext = Path(orig_name).suffix or ".mp4"
+            with tempfile.NamedTemporaryFile(delete=False, suffix=ext) as tf:
+                temp_media_path = tf.name
+                remaining = content_length
+                while remaining > 0:
+                    chunk = self.rfile.read(min(remaining, 1024 * 1024))
+                    if not chunk:
+                        break
+                    tf.write(chunk)
+                    remaining -= len(chunk)
+
+            # Extract 16kHz mono WAV via ffmpeg and load as float32 numpy array (bypasses PyAV metadata_errors bug)
+            audio_input = temp_media_path
+            ffmpeg_bin = find_ffmpeg_bin()
+            if ffmpeg_bin:
+                update_srt_job(job_id, percent=22, stage="Extracting audio track with ffmpeg...", detail="Converting to 16kHz mono WAV")
+                with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as wf:
+                    temp_wav_path = wf.name
+                cmd = [
+                    ffmpeg_bin, "-y", "-i", temp_media_path,
+                    "-vn", "-acodec", "pcm_s16le", "-ar", "16000", "-ac", "1",
+                    temp_wav_path
+                ]
+                proc = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                if proc.returncode == 0 and Path(temp_wav_path).stat().st_size > 0:
+                    import wave
+                    import numpy as np
+                    with wave.open(temp_wav_path, "rb") as w:
+                        audio_input = np.frombuffer(w.readframes(w.getnframes()), dtype=np.int16).astype(np.float32) / 32768.0
+
+            try:
+                from faster_whisper import WhisperModel
+            except ImportError:
+                update_srt_job(job_id, status="error", stage="faster-whisper not installed")
+                self.send_json_response({
+                    "success": False,
+                    "error": "The 'faster-whisper' package is not installed. Run 'python -m pip install faster-whisper'."
+                }, 500)
+                return
+
+            if model_size not in _WHISPER_MODELS:
+                update_srt_job(
+                    job_id,
+                    percent=28,
+                    stage=f"Loading Whisper '{model_size}' model...",
+                    detail="First run downloads the model once; future runs are 100% offline."
+                )
+                print(f"[SRT] Loading Whisper model '{model_size}' (int8, CPU)...")
+                _WHISPER_MODELS[model_size] = WhisperModel(model_size, device="cpu", compute_type="int8")
+            model = _WHISPER_MODELS[model_size]
+
+            update_srt_job(job_id, percent=35, stage="Analyzing audio & detecting speech...", detail=f"Model: {model_size}")
+            lang_arg = None if language == "auto" else language
+            custom_hint = params.get("hint", [""])[0].strip()
+            initial_prompt = custom_hint or None
+            if language == "hi" and task == "transcribe" and not initial_prompt:
+                initial_prompt = "यह हिंदी भाषा में शुद्ध देवनागरी लिपि का स्पष्ट पाठ है।"
+
+            print(f"[SRT] Transcribing '{orig_name}' (model={model_size}, lang={language}, task={task}, vad={vad_filter})...")
+            segments_iter, info = model.transcribe(
+                audio_input,
+                language=lang_arg,
+                task=task,
+                vad_filter=vad_filter,
+                beam_size=5,
+                initial_prompt=initial_prompt
+            )
+
+            total_dur = max(float(info.duration or 0), 0.1)
+            segments = []
+            srt_blocks = []
+            for idx, seg in enumerate(segments_iter, start=1):
+                text_clean = (seg.text or "").strip()
+                if text_clean:
+                    start_ts = format_srt_timestamp(seg.start)
+                    end_ts = format_srt_timestamp(seg.end)
+                    segments.append({
+                        "index": len(segments) + 1,
+                        "start": seg.start,
+                        "end": seg.end,
+                        "startTs": start_ts,
+                        "endTs": end_ts,
+                        "text": text_clean
+                    })
+                    srt_blocks.append(f"{len(segments)}\n{start_ts} --> {end_ts}\n{text_clean}")
+
+                ratio = min(1.0, float(seg.end or 0) / total_dur)
+                pct = 35 + int(60 * ratio)
+                update_srt_job(
+                    job_id,
+                    percent=pct,
+                    stage=f"Transcribing speech... ({len(segments)} lines)",
+                    detail=f"{format_srt_timestamp(seg.end or 0)[:8]} / {format_srt_timestamp(total_dur)[:8]} • Lang: {info.language}"
+                )
+
+            srt_text = "\n\n".join(srt_blocks) + ("\n" if srt_blocks else "")
+
+            SUBTITLES_DIR.mkdir(parents=True, exist_ok=True)
+            stem = Path(orig_name).stem or "subtitles"
+            suffix = "_en" if task == "translate" else ""
+            out_name = f"{stem}{suffix}.srt"
+            out_path = SUBTITLES_DIR / out_name
+            out_path.write_text(srt_text, encoding="utf-8")
+
+            update_srt_job(job_id, status="done", percent=100, stage=f"Complete! Generated {len(segments)} subtitle lines", detail=out_name)
+            print(f"[SRT] Generated {out_name} ({len(segments)} segments, lang={info.language})")
+            self.send_json_response({
+                "success": True,
+                "filename": out_name,
+                "url": f"/subtitles/{out_name}",
+                "srtText": srt_text,
+                "segments": segments,
+                "detectedLanguage": info.language,
+                "languageProbability": round(float(info.language_probability or 0), 3),
+                "duration": round(float(info.duration or 0), 2),
+                "size": out_path.stat().st_size
+            })
+        except Exception as e:
+            print(f"[SRT Error] {e}")
+            update_srt_job(job_id, status="error", stage="Transcription failed", detail=str(e))
+            self.send_json_response({"success": False, "error": str(e)}, 500)
+        finally:
+            for p in (temp_media_path, temp_wav_path):
+                if p and os.path.exists(p):
+                    try:
+                        os.unlink(p)
+                    except Exception:
+                        pass
 
 
 def load_configuration(cli_args=None):

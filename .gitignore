@@ -25,6 +25,10 @@ backups/logs/*
 audio/*
 !audio/.gitkeep
 
+# Subtitle generated files (never commit personal generated .srt files)
+subtitles/*
+!subtitles/.gitkeep
+
 # Operating System & IDE files
 Thumbs.db
 ehthumbs.db

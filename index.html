@@ -17,11 +17,12 @@
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 
     <!-- Stylesheets -->
-    <link rel="stylesheet" href="css/app.css?v=19">
-    <link rel="stylesheet" href="css/trimmer.css?v=19">
-    <link rel="stylesheet" href="css/library.css?v=19">
-    <link rel="stylesheet" href="css/backup-updater.css?v=19">
-    <link rel="stylesheet" href="css/tts.css?v=19">
+    <link rel="stylesheet" href="css/app.css?v=24">
+    <link rel="stylesheet" href="css/trimmer.css?v=24">
+    <link rel="stylesheet" href="css/library.css?v=24">
+    <link rel="stylesheet" href="css/backup-updater.css?v=24">
+    <link rel="stylesheet" href="css/tts.css?v=24">
+    <link rel="stylesheet" href="css/srt.css?v=24">
 
     <!-- JSZip for Client-side ZIP packaging -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
@@ -111,6 +112,24 @@
                             <button type="button" class="btn btn-sm" id="themeDarkBtn"
                                 style="padding:5px 12px; font-size:12.5px;">🌙 Dark</button>
                         </div>
+                    </div>
+                </div>
+
+                <!-- Library Behavior Section -->
+                <div class="settings-section">
+                    <h4
+                        style="margin:0 0 10px; font-size:13px; text-transform:uppercase; letter-spacing:0.05em; color:var(--text-muted); font-weight:700;">
+                        Library Behavior</h4>
+                    <div
+                        style="background:var(--bg-main); border:1px solid var(--border); border-radius:var(--radius-md); padding:16px; display:flex; justify-content:space-between; align-items:center; gap:14px;">
+                        <div>
+                            <div style="font-weight:600; font-size:14px; color:var(--text-primary);">Auto-Mark Done on Copy</div>
+                            <div style="font-size:12px; color:var(--text-muted); margin-top:2px;">Automatically mark an item as Done once both its text and image have been copied.</div>
+                        </div>
+                        <label class="toggle-switch" title="Toggle Auto-Mark Done on Copy">
+                            <input type="checkbox" id="autoMarkDoneOnCopyToggle">
+                            <span class="toggle-slider"></span>
+                        </label>
                     </div>
                 </div>
 
@@ -204,12 +223,13 @@
 
     <!-- Application Initialization & Module Registration -->
     <script type="module">
-        import { App } from "./js/app.js?v=19";
-        import { TrimmerModule } from "./js/modules/trimmer.js?v=19";
-        import { LibraryModule } from "./js/modules/library.js?v=19";
-        import { GridSplitterModule } from "./js/modules/grid-splitter.js?v=19";
-        import { BackupUpdaterModule } from "./js/modules/backup-updater.js?v=19";
-        import { TtsModule } from "./js/modules/tts.js?v=19";
+        import { App } from "./js/app.js?v=24";
+        import { TrimmerModule } from "./js/modules/trimmer.js?v=24";
+        import { LibraryModule } from "./js/modules/library.js?v=24";
+        import { GridSplitterModule } from "./js/modules/grid-splitter.js?v=24";
+        import { BackupUpdaterModule } from "./js/modules/backup-updater.js?v=24";
+        import { TtsModule } from "./js/modules/tts.js?v=24";
+        import { SrtModule } from "./js/modules/srt.js?v=24";
 
         // Wrap in async IIFE so we can use await without top-level await
         (async () => {
@@ -219,6 +239,7 @@
                 App.registerModule(BackupUpdaterModule);
                 App.registerModule(GridSplitterModule);
                 App.registerModule(TtsModule);
+                App.registerModule(SrtModule);
                 App.initApp();
             } catch (err) {
                 var o = document.getElementById('errOverlay');

@@ -85,6 +85,110 @@ class AppKernel {
 
             navContainer.appendChild(tabBtn);
         });
+
+        // Create overflow "More ▾" wrapper inside navContainer
+        const moreWrap = document.createElement("div");
+        moreWrap.className = "nav-more-wrap";
+        moreWrap.id = "navMoreWrap";
+        moreWrap.style.display = "none";
+        moreWrap.innerHTML = `
+            <button type="button" class="nav-tab nav-more-btn" id="navMoreBtn" title="More tools">
+                <span id="navMoreLabel">More ▾</span>
+            </button>
+            <div class="nav-more-menu" id="navMoreMenu"></div>
+        `;
+        navContainer.appendChild(moreWrap);
+
+        const moreBtn = moreWrap.querySelector("#navMoreBtn");
+        const moreMenu = moreWrap.querySelector("#navMoreMenu");
+        moreBtn.onclick = e => {
+            e.stopPropagation();
+            moreMenu.classList.toggle("open");
+        };
+
+        if (!this._navClickOutsideBound) {
+            this._navClickOutsideBound = true;
+            document.addEventListener("click", () => {
+                document.getElementById("navMoreMenu")?.classList.remove("open");
+            });
+            window.addEventListener("resize", () => this.layoutNavigation());
+        }
+
+        requestAnimationFrame(() => this.layoutNavigation());
+    }
+
+    layoutNavigation() {
+        const header = document.querySelector(".app-header");
+        const navContainer = document.getElementById("moduleNav");
+        const moreWrap = document.getElementById("navMoreWrap");
+        const moreMenu = document.getElementById("navMoreMenu");
+        const moreLabel = document.getElementById("navMoreLabel");
+        const moreBtn = document.getElementById("navMoreBtn");
+        if (!header || !navContainer || !moreWrap || !moreMenu) return;
+
+        const tabs = Array.from(navContainer.querySelectorAll(":scope > .nav-tab"));
+        // Reset all tabs visible to measure natural widths
+        tabs.forEach(t => { t.style.display = "inline-flex"; });
+        moreWrap.style.display = "none";
+        moreMenu.innerHTML = "";
+        moreBtn.classList.remove("active");
+
+        const headerLeft = header.querySelector(".header-left");
+        const headerRight = header.querySelector(".header-right");
+        const reserved = (headerLeft?.offsetWidth || 0) + (headerRight?.offsetWidth || 0) + 96;
+        const availableWidth = Math.max(220, header.clientWidth - reserved);
+
+        const moreReserve = 105;
+        let used = 0;
+        const overflowTabs = [];
+
+        tabs.forEach((tab, idx) => {
+            const w = tab.offsetWidth + 4;
+            // Always keep at least 2 tabs visible if possible, move rest if overflowing
+            if (idx >= 2 && used + w > availableWidth - moreReserve) {
+                overflowTabs.push(tab);
+            } else {
+                used += w;
+            }
+        });
+
+        // If nothing overflowed within full availableWidth, show all
+        if (overflowTabs.length === 0) return;
+
+        // Re-check if all tabs actually fit without the moreReserve
+        const totalWidth = tabs.reduce((sum, t) => sum + t.offsetWidth + 4, 0);
+        if (totalWidth <= availableWidth) return;
+
+        let activeInOverflow = null;
+        overflowTabs.forEach(tab => {
+            tab.style.display = "none";
+            const targetId = tab.getAttribute("data-target");
+            const mod = this.modules.get(targetId);
+            if (!mod) return;
+
+            const menuItem = document.createElement("button");
+            menuItem.type = "button";
+            menuItem.className = `nav-more-item ${this.activeModuleId === mod.id ? "active" : ""}`;
+            menuItem.innerHTML = `${mod.icon ? `<span class="tab-icon">${mod.icon}</span>` : ""}<span>${mod.name}</span>`;
+            menuItem.onclick = e => {
+                e.stopPropagation();
+                moreMenu.classList.remove("open");
+                this.switchModule(mod.id);
+            };
+            moreMenu.appendChild(menuItem);
+
+            if (this.activeModuleId === mod.id) {
+                activeInOverflow = mod;
+            }
+        });
+
+        moreWrap.style.display = "inline-flex";
+        if (activeInOverflow) {
+            moreBtn.classList.add("active");
+            moreLabel.textContent = `${activeInOverflow.icon || ""} ${activeInOverflow.name} ▾`;
+        } else {
+            moreLabel.textContent = `More (${overflowTabs.length}) ▾`;
+        }
     }
 
     getTabInfo(moduleIdentifier) {
@@ -249,6 +353,7 @@ class AppKernel {
         document.querySelectorAll(".nav-tab").forEach(tab => {
             tab.classList.toggle("active", tab.getAttribute("data-target") === targetId);
         });
+        this.layoutNavigation();
 
         const activeMod = this.modules.get(targetId);
 
@@ -342,6 +447,22 @@ class AppKernel {
             if (lightBtn) lightBtn.onclick = () => this.setTheme("light");
             if (darkBtn) darkBtn.onclick = () => this.setTheme("dark");
 
+            // Auto-mark done on copy toggle
+            const autoDoneToggle = document.getElementById("autoMarkDoneOnCopyToggle");
+            if (autoDoneToggle) {
+                autoDoneToggle.checked = this.isAutoMarkDoneOnCopy();
+                autoDoneToggle.onchange = () => {
+                    localStorage.setItem("panda_studio_auto_done_on_copy", String(autoDoneToggle.checked));
+                    this.log("app", `Auto-Mark Done on Copy ${autoDoneToggle.checked ? "enabled" : "disabled"}`);
+                    this.showToast(
+                        autoDoneToggle.checked
+                            ? "Auto-Mark Done on Copy enabled"
+                            : "Auto-Mark Done on Copy disabled",
+                        "info"
+                    );
+                };
+            }
+
             settingsModal.addEventListener("click", e => {
                 if (e.target === settingsModal) closeSettings();
             });
@@ -375,6 +496,10 @@ class AppKernel {
                 };
             }
         }
+    }
+
+    isAutoMarkDoneOnCopy() {
+        return localStorage.getItem("panda_studio_auto_done_on_copy") === "true";
     }
 
     showToast(message, type = "info", duration = 3000) {

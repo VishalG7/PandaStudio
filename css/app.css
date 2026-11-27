@@ -149,22 +149,22 @@ body {
 .module-nav {
     display: flex;
     align-items: center;
-    gap: 4px;
+    gap: 2px;
     background: var(--bg-main);
     padding: 3px 4px;
     border-radius: var(--radius-md);
     border: 1px solid var(--border);
     flex-shrink: 1;
-    overflow-x: auto;
     max-width: 100%;
+    position: relative;
 }
 
 .nav-tab {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
-    padding: 6px 14px;
-    font-size: 13px;
+    gap: 5px;
+    padding: 6px 11px;
+    font-size: 12.5px;
     font-weight: 600;
     color: var(--text-secondary);
     background: transparent;
@@ -174,6 +174,61 @@ body {
     transition: all 0.15s ease;
     white-space: nowrap;
     flex-shrink: 0;
+}
+
+.nav-more-wrap {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+}
+
+.nav-more-menu {
+    position: absolute;
+    top: calc(100% + 8px);
+    right: 0;
+    min-width: 210px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg, 0 10px 25px rgba(0, 0, 0, 0.12));
+    padding: 6px;
+    display: none;
+    flex-direction: column;
+    gap: 3px;
+    z-index: 200;
+}
+
+.nav-more-menu.open {
+    display: flex;
+}
+
+.nav-more-item {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    width: 100%;
+    padding: 8px 12px;
+    font-size: 13px;
+    font-weight: 600;
+    font-family: var(--font-sans);
+    color: var(--text-secondary);
+    background: transparent;
+    border: none;
+    border-radius: var(--radius-sm);
+    cursor: pointer;
+    text-align: left;
+    white-space: nowrap;
+    transition: background 0.15s ease, color 0.15s ease;
+}
+
+.nav-more-item:hover {
+    background: var(--bg-main);
+    color: var(--text-primary);
+}
+
+.nav-more-item.active {
+    background: var(--primary-light);
+    color: var(--primary);
 }
 
 .nav-tab:hover {
@@ -882,4 +937,54 @@ input[type="file"]::-webkit-file-upload-button:hover {
 
 [data-theme="dark"] .diff-table tr:hover td {
     background: #253347;
+}
+
+/* ---------------- TOGGLE SWITCH ---------------- */
+
+.toggle-switch {
+    position: relative;
+    display: inline-block;
+    width: 44px;
+    height: 24px;
+    flex-shrink: 0;
+    cursor: pointer;
+}
+
+.toggle-switch input {
+    opacity: 0;
+    width: 0;
+    height: 0;
+}
+
+.toggle-slider {
+    position: absolute;
+    inset: 0;
+    background-color: #cbd5e1;
+    border-radius: 999px;
+    transition: background-color 0.2s ease;
+}
+
+.toggle-slider::before {
+    content: "";
+    position: absolute;
+    height: 18px;
+    width: 18px;
+    left: 3px;
+    bottom: 3px;
+    background-color: #ffffff;
+    border-radius: 50%;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+    transition: transform 0.2s ease;
+}
+
+.toggle-switch input:checked + .toggle-slider {
+    background-color: var(--primary);
+}
+
+.toggle-switch input:checked + .toggle-slider::before {
+    transform: translateX(20px);
+}
+
+[data-theme="dark"] .toggle-slider {
+    background-color: #475569;
 }

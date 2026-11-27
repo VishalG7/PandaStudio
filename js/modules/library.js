@@ -22,6 +22,7 @@ export const LibraryModule = {
         pendingImageBlob: null,
         pendingImageRemoved: false,
         selectedItemIds: new Set(),
+        copiedParts: new Map(), // itemId -> { image: boolean, text: boolean }
         itemModalBaseline: null,
         groupModalBaseline: ""
     },
@@ -1267,6 +1268,9 @@ export const LibraryModule = {
 
         item.done = !item.done;
         item.updatedAt = Date.now();
+        if (!item.done && this.state.copiedParts) {
+            this.state.copiedParts.delete(item.id);
+        }
         await dbPut("items", item);
         this.renderItems();
         this.scheduleAutoBackup();
@@ -1281,6 +1285,21 @@ export const LibraryModule = {
     /* =========================================================
        Clipboard Actions
        ========================================================= */
+
+    async markCopyProgress(item, part) {
+        if (!item) return;
+        const entry = this.state.copiedParts.get(item.id) || { image: false, text: false };
+        entry[part] = true;
+        this.state.copiedParts.set(item.id, entry);
+
+        if (!this.app.isAutoMarkDoneOnCopy() || item.done) return;
+
+        const needsImage = Boolean(item.image);
+        const needsText = Boolean(item.text);
+        if ((!needsImage || entry.image) && (!needsText || entry.text)) {
+            await this.toggleDone(item.id);
+        }
+    },
 
     async copyImage(item) {
         if (!item || !item.image) {
@@ -1309,6 +1328,7 @@ export const LibraryModule = {
                 new ClipboardItem({ "image/png": clipboardBlob })
             ]);
             this.app.showToast("Image copied to clipboard (PNG)", "success");
+            await this.markCopyProgress(item, "image");
         } catch (err) {
             console.error(err);
             this.app.showToast("Could not copy image. Check browser permissions.", "error");
@@ -1324,6 +1344,7 @@ export const LibraryModule = {
         try {
             await navigator.clipboard.writeText(item.text);
             this.app.showToast("Text copied to clipboard", "success");
+            await this.markCopyProgress(item, "text");
         } catch (err) {
             console.error(err);
             this.app.showToast("Could not copy text", "error");

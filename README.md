@@ -26,6 +26,7 @@ A high-performance, offline-first, zero-cloud desktop web platform designed for 
   - [Tab 3: 🔄 Backup JSON Updater & Sync (`backup-updater`)](#tab-3--backup-json-updater--sync-backup-updater)
   - [Tab 4: 🪟 Grid Slicer (N-Tiles) (`grid-splitter`)](#tab-4--grid-slicer-n-tiles-grid-splitter)
   - [Tab 5: 🎙️ Text to Speech (`tts`)](#tab-5-️-text-to-speech-tts)
+  - [Tab 6: 💬 Offline SRT Subtitles (`srt`)](#tab-6--offline-srt-subtitles-srt)
 - [🌟 Global Platform Features](#-global-platform-features)
   - [Settings & Profile Modal](#settings--profile-modal)
   - [Light ☀️ / Dark 🌙 Theme Engine](#light-️--dark--theme-engine)
@@ -146,8 +147,9 @@ Full image-prompt catalogue and asset management system:
 - **Task Completion & Done State (Greyed-Out):** One-click completion toggle (`○` / `✓`) directly on card headers. Completed items are visually greyed out with title strikethrough, subtle contrast, and green `✓ Done` pills. Includes sidebar filters (`⏳ Pending` / `✅ Done`) and multi-item bulk completion actions.
 - **Natural Numerical Sorting:** Intelligently sorts items whose titles begin with numbers (`1.`, `2.`, `28. Stick Insect`).
 - **Real-Time Filtering:** Search across titles, descriptions, and tags with sidebar filters for Favorites, Groups, and Tags.
-- **Group Management with Cascade Deletion:** Deleting a group automatically purges all items assigned to that group to prevent orphaned ghost items.
+- **Group Management with Drag-and-Drop Reorder & Cascade Deletion:** Drag and drop groups in the left sidebar (`⋮⋮` handle) to manually rearrange their order (persisted in IndexedDB). Deleting a group automatically purges all items assigned to that group to prevent orphaned ghost items.
 - **Multi-Action Clipboard & Card Shortcuts:** Copy Image (auto-normalizes to standard PNG format), Copy Text, or Copy Both in one click. Direct `📋 Image` and `📝 Text` quick-copy buttons are placed on every item card so you can copy without opening the detail modal.
+- **Auto-Mark Done on Copy:** Optional toggle in `⚙️ Settings` (`Auto-Mark Done on Copy`) that automatically marks an item as Done once both its text and image have been copied.
 - **Automated Debounced Backup & Retention Cleanup:** Edits in Tab 1 automatically sync to `backups/library-backup-auto.json` after 5 seconds of inactivity. Manual `📤 Export / Backup` creates timestamped `backups/library-backup-YYYYMMDD_HHMMSS.json` snapshots, and the server automatically retains only the newest `max_backup_files` (default `5`, configurable in `config.json`) while cleaning up older snapshots.
 
 ---
@@ -155,7 +157,7 @@ Full image-prompt catalogue and asset management system:
 ### Tab 2: ✂️ 4-Panel Image Trimmer (`trimmer`)
 Computer-vision panel splitter for 2×2 composite images:
 - **Intelligent Gutter & Edge Removal:** Pinpoints and trims white dividing lines and outer margins.
-- **Sequence Naming:** Automatically detects range numbers from source file names (e.g. `1-4.jpg` → `1.jpg`, `2.jpg`, `3.jpg`, `4.jpg`) or supports custom starting integers.
+- **Sequence Naming & Multi-Image Batch Trimming:** Automatically detects range numbers from source file names (e.g. `1-4.jpg` → `1.jpg`–`4.jpg`, `5-8.jpg` → `5.jpg`–`8.jpg`, `9-12.jpg` → `9.jpg`–`12.jpg`) or supports custom starting integers. Supports selecting/dropping **multiple** 2×2 images at once to process in sequence via a Batch Queue while retaining single-image trimming.
 - **File Overwrite & Conflict Protection:** Probes target disk folders before saving. If filenames already exist, provides safe options:
   - **Save with Unique Suffix:** Automatically renames existing collisions (e.g. `1_1.jpg`).
   - **Advance Sequence:** Shifts range to the next available integers (e.g. `5.jpg`–`8.jpg`).
@@ -197,10 +199,24 @@ Convert text and video prompts into natural neural speech:
 
 ---
 
+### Tab 6: 💬 Offline SRT Subtitles (`srt`)
+Generate timestamped `.srt` subtitle files from finalized YouTube videos completely offline:
+- **100% Offline Engine:** Extracts 16kHz mono audio via local `ffmpeg` and transcribes locally using `faster-whisper` (`small` cached by default, plus `tiny`, `base`, `medium`, `large-v3-turbo`, and `large-v3`).
+- **Hindi & Multilingual Accuracy:** Supports `Auto-Detect`, `English`, `Hindi` (with Devanagari prompt conditioning + optional Vocabulary Hint input), and one-click `Translate Speech → English SRT`.
+- **Live Progress Bar:** Displays upload progress, `ffmpeg` extraction, model loading, and real-time segment percentage/timestamps.
+- **Built-In Editor & History:** Edit timestamps or words directly in-browser, save edits back to `subtitles/`, copy, or download `.srt`.
+
+---
+
 ## 🌟 Global Platform Features
+
+### Scalable Navigation Bar (`More ▾`)
+- Automatically measures available header space and tucks overflowing tabs into a **`More (N) ▾`** dropdown menu so additional tools never crowd the toolbar.
 
 ### Settings & Profile Modal
 Accessible via the gear icon (`⚙️`) in the top-left header:
+- **Theme Mode:** Switch between ☀️ Light Mode and 🌙 Dark Mode.
+- **Auto-Mark Done on Copy:** Toggle switch to automatically mark Tab 1 items as Done after copying both text and image.
 - **Developer Attribution:** Developed by **Vishal**.
 - **YouTube Studio Shortcut:** One-click launch to [YouTube Creator Studio](https://studio.youtube.com/).
 - **Activity Log Path:** Displays current logs directory (`backups/logs/`).
@@ -229,6 +245,11 @@ Accessible via the gear icon (`⚙️`) in the top-left header:
 | `POST` | `/save-backup` | Saves backup snapshot JSON to `backups/` |
 | `POST` | `/api/update-backup` | Updates backup in-place or saves a new version |
 | `POST` | `/api/log` | Appends formatted action entry to today's log file |
+| `POST` | `/api/srt/generate` | Generates `.srt` subtitles offline via `ffmpeg` + `faster-whisper` |
+| `GET` | `/api/srt/progress` | Returns live transcription progress for an active SRT job |
+| `GET` | `/api/srt/history` | Lists saved `.srt` files in `subtitles/` |
+| `POST` | `/api/srt/save` | Saves edited `.srt` text back to `subtitles/` |
+| `POST` | `/api/srt/delete` | Deletes a saved `.srt` file from `subtitles/` |
 
 ---
 
