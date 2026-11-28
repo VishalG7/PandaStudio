@@ -5,8 +5,8 @@
  * sets remaining fields to current date/time defaults, and saves back to disk or IndexedDB.
  */
 
-import { App } from "../app.js";
-import { dbPut, dbGetAll } from "../utils/db.js";
+import { App } from "../app.js?v=26";
+import { dbPut, dbGetAll } from "../utils/db.js?v=26";
 
 export const BackupUpdaterModule = {
     id: "backup-updater",
@@ -982,6 +982,7 @@ export const BackupUpdaterModule = {
             await dbPut("items", record);
         }
 
+        localStorage.setItem("panda_studio_last_sync_ts", String(Date.now()));
         this.app.log(this.id, `Synced merged data to IndexedDB: ${data.items.length} items, ${data.groups.length} groups`);
         this.app.showToast("Active library database synced successfully!", "success");
 
@@ -990,6 +991,7 @@ export const BackupUpdaterModule = {
         if (libMod && libMod.initialized) {
             try {
                 await libMod.loadData();
+                await libMod.runAutoBackup();
                 this.app.log(this.id, "Refreshed Tab 1 (Image & Text Library) data from IndexedDB");
             } catch (err) {
                 console.error("[BackupUpdater] Error refreshing LibraryModule data:", err);

@@ -5,8 +5,8 @@
  * tagging, grouping, search, backup/export and import.
  */
 
-import { openDatabase, dbPut, dbGetAll, dbDelete } from "../utils/db.js";
-import { App } from "../app.js";
+import { openDatabase, dbPut, dbGetAll, dbDelete, dbClear } from "../utils/db.js?v=26";
+import { App } from "../app.js?v=26";
 
 export const LibraryModule = {
     id: "library",
@@ -35,6 +35,7 @@ export const LibraryModule = {
 
         try {
             await openDatabase();
+            await this.syncFromServerBackup();
             await this.loadData();
         } catch (err) {
             console.error("IndexedDB initialization error:", err);
@@ -43,11 +44,116 @@ export const LibraryModule = {
     },
 
     async onActivate() {
-        // Automatically reload data from IndexedDB whenever user switches to this tab
+        // Sync from server if another browser updated the disk backup, then reload IndexedDB
         try {
+            await this.syncFromServerBackup();
             await this.loadData();
         } catch (err) {
             console.error("[LibraryModule] onActivate reload error:", err);
+        }
+    },
+
+    async syncFromServerBackup({ force = false } = {}) {
+        // Do not overwrite unsaved local edits waiting to auto-backup
+        if (!force && this._autoBackupTimer) return false;
+
+        try {
+            const res = await fetch("/api/latest-backup", { cache: "no-store" });
+            if (!res.ok) return false;
+            const payload = await res.json();
+            if (!payload.success || !payload.data || !Array.isArray(payload.data.items)) {
+                return false;
+            }
+
+            const data = payload.data;
+            const exportedMs = data.exportedAt ? Date.parse(data.exportedAt) : 0;
+            const mtimeMs = payload.mtime ? Math.round(payload.mtime * 1000) : 0;
+            const serverTs = Math.max(exportedMs || 0, mtimeMs || 0);
+            const localSyncTs = Number(localStorage.getItem("panda_studio_last_sync_ts") || 0);
+
+            const [localItems, localGroups] = await Promise.all([
+                dbGetAll("items"),
+                dbGetAll("groups")
+            ]);
+
+            const isLocalEmpty = localItems.length === 0 && localGroups.length === 0;
+            const isServerNewer = serverTs > localSyncTs + 500;
+
+            if (!force && !isLocalEmpty && !isServerNewer) {
+                return false;
+            }
+
+            await dbClear("items");
+            await dbClear("groups");
+
+            const legacyIdToName = new Map();
+            const groupMap = new Map(); // lowercase name -> group record
+            let groupOrder = 0;
+
+            if (Array.isArray(data.groups)) {
+                for (const g of data.groups) {
+                    const gName = (typeof g === "string" ? g : g?.name || "").trim();
+                    if (!gName) continue;
+                    if (typeof g === "object" && g !== null && g.id) {
+                        legacyIdToName.set(String(g.id), gName);
+                    }
+                    if (!groupMap.has(gName.toLowerCase())) {
+                        const grpRec = { id: crypto.randomUUID(), name: gName, order: groupOrder++ };
+                        groupMap.set(gName.toLowerCase(), grpRec);
+                        await dbPut("groups", grpRec);
+                    }
+                }
+            }
+
+            for (const rawItem of data.items) {
+                if (!rawItem || !rawItem.id) continue;
+                let groupId = null;
+                if (rawItem.group) {
+                    let gName = String(rawItem.group).trim();
+                    if (legacyIdToName.has(gName)) gName = legacyIdToName.get(gName);
+                    if (gName && gName !== "null" && gName !== "undefined") {
+                        let matched = groupMap.get(gName.toLowerCase());
+                        if (!matched) {
+                            matched = { id: crypto.randomUUID(), name: gName, order: groupOrder++ };
+                            groupMap.set(gName.toLowerCase(), matched);
+                            await dbPut("groups", matched);
+                        }
+                        groupId = matched.id;
+                    }
+                }
+
+                let imageVal = rawItem.image || null;
+                if (typeof imageVal === "string" && imageVal.startsWith("data:")) {
+                    try {
+                        imageVal = this.base64ToBlob(imageVal);
+                    } catch {
+                        // Keep string fallback if malformed
+                    }
+                }
+
+                await dbPut("items", {
+                    id: String(rawItem.id),
+                    title: rawItem.title || "Untitled",
+                    text: rawItem.text || "",
+                    group: groupId,
+                    favorite: Boolean(rawItem.favorite),
+                    done: Boolean(rawItem.done),
+                    tags: Array.isArray(rawItem.tags) ? rawItem.tags : [],
+                    image: imageVal,
+                    createdAt: rawItem.createdAt || Date.now(),
+                    updatedAt: rawItem.updatedAt || Date.now()
+                });
+            }
+
+            localStorage.setItem("panda_studio_last_sync_ts", String(serverTs || Date.now()));
+            this.app.log(this.id, `Synced library from server backup: ${payload.filename}`, {
+                items: data.items.length,
+                groups: groupMap.size
+            });
+            return true;
+        } catch (err) {
+            console.debug("[LibraryModule] Server backup sync skipped (offline or unavailable):", err?.message || err);
+            return false;
         }
     },
 
@@ -1530,6 +1636,8 @@ export const LibraryModule = {
             if (res.ok) {
                 const resData = await res.json();
                 if (resData.success) {
+                    const syncTs = resData.mtime ? Math.round(resData.mtime * 1000) : Date.now();
+                    localStorage.setItem("panda_studio_last_sync_ts", String(syncTs));
                     const cleanedMsg = resData.cleanedUp?.length ? ` (cleaned ${resData.cleanedUp.length} old backup(s))` : "";
                     this.app.log(this.id, `Auto-backup saved: ${resData.filename}${cleanedMsg}`, { items: data.items.length });
                 }
@@ -1558,6 +1666,8 @@ export const LibraryModule = {
                 const resData = await res.json();
                 if (res.ok && resData.success) {
                     serverSaved = true;
+                    const syncTs = resData.mtime ? Math.round(resData.mtime * 1000) : Date.now();
+                    localStorage.setItem("panda_studio_last_sync_ts", String(syncTs));
                     const cleanedMsg = resData.cleanedUp?.length ? ` (cleaned ${resData.cleanedUp.length} old)` : "";
                     this.app.showToast(`Backup saved to server: ${resData.filename}${cleanedMsg}`, "success");
                 }

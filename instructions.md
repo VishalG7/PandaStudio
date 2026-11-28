@@ -109,6 +109,7 @@ If any file throws a syntax error, fix it immediately.
 ### 14b. Tab 1 Quick Copy, Auto-Backup & Retention Invariants
 - Each item card in Tab 1 MUST expose direct `📋 Image` and `📝 Text` quick-copy shortcut buttons (`.card-copy-img-btn`, `.card-copy-txt-btn`) with `e.stopPropagation()` so users can copy without opening the detail modal.
 - All Tab 1 IndexedDB mutations MUST trigger `scheduleAutoBackup()` (5-second debounce posting to `/save-backup?auto=1`).
+- On startup (`init()`) and tab activation (`onActivate()`), `LibraryModule.syncFromServerBackup()` MUST check `/api/latest-backup` and hydrate local IndexedDB whenever the browser's store is empty or the server JSON on disk is newer (`serverTs > localSyncTs`), ensuring consistent data across all browsers and user profiles.
 - Backend backup handlers (`/save-backup` and `/api/update-backup`) MUST invoke `cleanup_old_backups()` to enforce `max_backup_files` (default `5` in `config.json`) on `library-backup-*.json` files without deleting custom user JSON files.
 
 ### 15. Tab 3 Target Group Dropdown & Selection Invariants

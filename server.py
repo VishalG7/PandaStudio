@@ -231,6 +231,8 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
         self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        if self.path.split("?")[0].endswith((".js", ".css", ".html", "/")):
+            self.send_header("Cache-Control", "no-cache, must-revalidate")
         super().end_headers()
 
     def do_OPTIONS(self):
@@ -430,6 +432,7 @@ class LocalLibraryHandler(SimpleHTTPRequestHandler):
                 "success": True,
                 "filename": filename,
                 "path": str(backup_path),
+                "mtime": backup_path.stat().st_mtime,
                 "timestamp": timestamp,
                 "auto": is_auto,
                 "cleanedUp": cleaned_up
